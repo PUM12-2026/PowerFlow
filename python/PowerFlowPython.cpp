@@ -80,7 +80,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision);
 
     pybind11::class_<PowerFlow>(m, "PowerFlow")
-        .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg("settings") = SolverSettings())
+        .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg_v("settings", SolverSettings(), "SolverSettings()"))
         .def("solve", &PowerFlow::solve, pybind11::arg("P"), pybind11::arg("V"), "Solve the power flow problem")
         .def("getLoadVoltages", &PowerFlow::getLoadVoltages, "Get the LOAD node voltages")
         .def("getAllVoltages", &PowerFlow::getAllVoltages, "Get all node voltages")

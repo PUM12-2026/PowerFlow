@@ -1,4 +1,10 @@
 build
+.venv
+python/*.pyd
+python/*.so
+python/*.pyi
+python/*.egg-info/
+python/*.egg-info/**/*
 out
 .vs
 CMakePresets.json

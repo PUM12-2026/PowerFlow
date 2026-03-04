@@ -1,0 +1,80 @@
+stages:
+  - C++-tests
+  - Binding-tests
+
+image: ubuntu:24.04
+
+test-windows-c++:
+  stage: C++-tests
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends cmake g++-mingw-w64 build-essential wine64
+  script:
+    - cmake -S . -B build-win \
+      -DCMAKE_SYSTEM_NAME=Windows \
+      -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+      -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+      -DCMAKE_EXE_LINKER_FLAGS="-static" \
+      -DCMAKE_CROSSCOMPILING_EMULATOR="/usr/bin/wine64"
+    - cmake --build build-win
+    - ctest --test-dir build-win -C Debug -V --output-on-failure
+
+test-linux-c++:
+  stage: C++-tests
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends cmake g++ build-essential
+  script:
+    - cmake -S . -B build-linux
+    - cmake --build build-linux
+    - ctest --test-dir build-linux -V --output-on-failure
+
+test-macos-c++:
+  stage: C++-tests
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends cmake clang llvm build-essential
+  script:
+    - cmake -S . -B build-mac \
+      -DCMAKE_C_COMPILER=clang \
+      -DCMAKE_CXX_COMPILER=clang++ \
+      -DCMAKE_CXX_FLAGS="-target x86_64-apple-macos10.12"
+    - cmake --build build-mac
+    - ctest --test-dir build-mac -V --output-on-failure
+
+test-python-bindings:
+  stage: Binding-tests
+  needs: []
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends
+      cmake g++ build-essential
+      python3.12 python3.12-dev python3.12-venv python3-pip pybind11-dev
+  script:
+    - python3 -m venv .venv
+    - source .venv/bin/activate
+    - pip install -r requirements.txt
+    - pip install -e . --no-build-isolation
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)/python
+    - python python/tests/test_ingreration.py
+
+test-matlab-bindings:
+  stage: Binding-tests
+  needs: []
+  variables:
+    MLM_LICENSE_FILE: "${MATLAB_LICENSE_SERVER}"
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends cmake g++ build-essential wget unzip ca-certificates pybind11-dev python3 python3-dev xvfb libxext6 libxt6
+    - wget -q https://www.mathworks.com/mpm/glnxa64/mpm
+    - chmod +x mpm
+    - ./mpm install --release=R2024b --destination=/usr/local/matlab --products MATLAB
+    - export PATH=$PATH:/usr/local/matlab/bin
+  script:
+    - mkdir build && cd build
+    - cmake -DCMAKE_BUILD_TYPE=Release -DMatlab_ROOT_DIR=/usr/local/matlab ..
+    - cmake --build . --target PowerFlowMex
+    - cd ..
+    - export MATLABPATH=$MATLABPATH:$(pwd)/build/matlab:$(pwd)/build:$(pwd)/matlab/tests:$(pwd)/matlab
+    - export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
+    - matlab -batch "test_integration"
