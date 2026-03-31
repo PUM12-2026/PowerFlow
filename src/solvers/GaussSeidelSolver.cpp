@@ -41,13 +41,17 @@ int GaussSeidelSolver::solve()
             if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
                 continue; // Slack node voltage is already known
 
+            // Complex current going through this node
             complex_t yv = 0;
+            // Sum of neighbor admittances
             complex_t ySum = 0;
 
             for (size_t edgeIdx : node.edges)
             {
                 GridEdge& edge = grid->edges[edgeIdx];
-                int neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
+                // TODO: create function to get neighbor nodes? This doesn't seem readable
+                // Although this does work, so no need to change it for now.
+                node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;    
                 GridNode& neighbor = grid->nodes[neighborIdx];
 
                 yv -= neighbor.v * y[edgeIdx];
@@ -76,13 +80,15 @@ int GaussSeidelSolver::solve()
         if (node.type != NodeType::SLACK_IMPLICIT && node.type != NodeType::SLACK)
             continue;
 
+        // Complex current going through this node
         complex_t yv = 0;
+        // Sum of neighbor admittances
         complex_t ySum = 0;
 
         for (edge_idx_t edgeIdx : node.edges)
         {
             GridEdge& edge = grid->edges[edgeIdx];
-            int neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
+            node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
             GridNode& neighbor = grid->nodes[neighborIdx];
 
             yv -= neighbor.v * y[edgeIdx];
@@ -109,13 +115,15 @@ bool GaussSeidelSolver::hasConverged()
         if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
             continue;
 
+        // Complex current going through this node
         complex_t yv = 0;
+        // Sum of neighbor admittances
         complex_t ySum = 0;
 
         for (size_t edgeIdx : node.edges)
         {
             GridEdge& edge = grid->edges[edgeIdx];
-            int neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
+            node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
             GridNode& neighbor = grid->nodes[neighborIdx];
 
             yv -= neighbor.v * y[edgeIdx];

@@ -15,8 +15,9 @@
 class MatlabLogger : public Logger
 {
 public:
-    MatlabLogger(std::shared_ptr<matlab::engine::MATLABEngine> matlab_ptr, LogLevel log_level) 
-        : Logger{ log_level }, matlab_ptr{ matlab_ptr } {}
+    MatlabLogger(std::shared_ptr<matlab::engine::MATLABEngine> matlab_ptr, LogLevel log_level)
+        : Logger{log_level}, matlab_ptr{matlab_ptr} {}
+
 private:
     std::shared_ptr<matlab::engine::MATLABEngine> matlab_ptr{};
 
@@ -24,7 +25,7 @@ private:
     {
         matlab::data::ArrayFactory factory;
         matlab_ptr->feval(u"fprintf", 0,
-            std::vector<matlab::data::Array>({ factory.createScalar(ss.str()) }));
+                          std::vector<matlab::data::Array>({factory.createScalar(ss.str())}));
         ss.str("");
         ss.clear();
     }
@@ -34,6 +35,10 @@ private:
 class MexFunction : public matlab::mex::Function
 {
     std::unordered_map<std::uint64_t, std::unique_ptr<PowerFlowSolver>> solvers;
+
+    /*
+        Only increases the more handlers we have, and never decreases if a handler is no longer active.
+    */
     std::uint64_t handleCounter = 0;
 
     // Pointer to MATLAB engine
@@ -42,6 +47,11 @@ class MexFunction : public matlab::mex::Function
     MatlabLogger logger{getEngine(), LogLevel::DEBUG};
 
 public:
+    /**
+     * @brief Entry point for the MATLAB function call.
+     * * @param outputs List of variables returned to the MATLAB workspace.
+     * @param inputs  List of arguments passed from the MATLAB command line.
+     */
     void operator()(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
         if (inputs.size() < 1 || inputs[0].getType() != matlab::data::ArrayType::MATLAB_STRING)
@@ -49,6 +59,8 @@ public:
             throw std::invalid_argument("Missing first argument: command");
         }
 
+        // Access the first element of the first input argument, since
+        // MATLAB treats all inputs as arrays.
         std::string command = inputs[0][0];
 
         if (command == "load")
@@ -90,10 +102,15 @@ public:
     }
 
 private:
+    /**
+     * @brief Gets the solver handle ID from the input arguments.
+     * * @param inputs  MATLAB input arguments containing the handle.
+     * @return std::uint64_t The validated solver handle ID.
+     */
     std::uint64_t getSolverHandle(matlab::mex::ArgumentList inputs)
     {
-        if (inputs.size() < 2 || 
-            inputs[1].getType() != matlab::data::ArrayType::UINT64 || 
+        if (inputs.size() < 2 ||
+            inputs[1].getType() != matlab::data::ArrayType::UINT64 ||
             inputs[1].getNumberOfElements() != 1 ||
             solvers.count(inputs[1][0]) == 0)
         {
@@ -198,10 +215,14 @@ private:
 
         NetworkLoader loader(file);
         std::shared_ptr<Network> net = loader.loadNetwork();
-        solvers.insert({ handleCounter, std::make_unique<PowerFlowSolver>(net, settings, &logger) });
 
+        // Ensure our solver handle can be referenced to later via an handle ID from MATLAB, since MATLAB iself
+        // cannot fully keep track of this.
+        solvers.insert({handleCounter, std::make_unique<PowerFlowSolver>(net, settings, &logger)});
         std::uint64_t handle = handleCounter;
         ++handleCounter;
+
+        // Send the solver handle up to MATLAB.
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createScalar<std::uint64_t>(handle);
     }
@@ -217,7 +238,7 @@ private:
             throw std::invalid_argument("Missing or invalid V vector");
         }
 
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
         matlab::data::TypedArray<complex_t> matlabS = inputs[2];
         matlab::data::TypedArray<complex_t> matlabV = inputs[3];
@@ -230,39 +251,39 @@ private:
 
     void getLoadVoltages(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         std::vector<complex_t> V = solver->getLoadVoltages();
         matlab::data::ArrayFactory factory;
-        outputs[0] = factory.createArray({ 1, V.size() }, V.begin(), V.end());
+        outputs[0] = factory.createArray({1, V.size()}, V.begin(), V.end());
     }
 
     void getAllVoltages(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         std::vector<complex_t> V = solver->getAllVoltages();
         matlab::data::ArrayFactory factory;
-        outputs[0] = factory.createArray({ 1, V.size() }, V.begin(), V.end());
+        outputs[0] = factory.createArray({1, V.size()}, V.begin(), V.end());
     }
 
     void getCurrents(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         std::vector<complex_t> I = solver->getCurrents();
         matlab::data::ArrayFactory factory;
-        outputs[0] = factory.createArray({ 1, I.size() }, I.begin(), I.end());
+        outputs[0] = factory.createArray({1, I.size()}, I.begin(), I.end());
     }
 
     void getSlackPowers(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         std::vector<complex_t> S = solver->getSlackPowers();
         matlab::data::ArrayFactory factory;
-        outputs[0] = factory.createArray({ 1, S.size() }, S.begin(), S.end());
+        outputs[0] = factory.createArray({1, S.size()}, S.begin(), S.end());
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
-        std::unique_ptr<PowerFlowSolver>& solver = solvers.at(getSolverHandle(inputs));
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         solver->reset();
     }
 
@@ -276,13 +297,14 @@ private:
         }
         else
         {
+            // Make sure we no longer track this solver handle.
             solvers.erase(handle);
         }
     }
 
-    void printToMatlab(const std::ostringstream& message)
+    void printToMatlab(const std::ostringstream &message)
     {
         matlab::data::ArrayFactory factory;
-        matlabPtr->feval(u"fprintf", 0, std::vector<matlab::data::Array>({ factory.createScalar(message.str()) }));
+        matlabPtr->feval(u"fprintf", 0, std::vector<matlab::data::Array>({factory.createScalar(message.str())}));
     }
 };

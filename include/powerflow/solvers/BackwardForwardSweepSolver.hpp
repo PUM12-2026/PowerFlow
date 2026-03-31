@@ -13,8 +13,8 @@ public:
     void reset() override;
 
 private:
-    node_idx_t rootIdx = -1;
-    std::vector<complex_t> I;
+    node_idx_t rootIdx = -1; // Default index of the root node.
+    std::vector<complex_t> I; // Current vector.
     bool firstRun = true; // Used to indicate that slack power has not been calculated
 
     // Recursive function that performs a single Backward-Forward sweep.

@@ -2,6 +2,7 @@
 #include "powerflow/NetworkLoaderError.hpp"
 #include <set>
 
+/// Loads a network from a network file. Read README.md for format and check the examples for reference.
 NetworkLoader::NetworkLoader(std::istream& file) : file{ file } { }
 
 std::unique_ptr<Network> NetworkLoader::loadNetwork()
@@ -11,6 +12,7 @@ std::unique_ptr<Network> NetworkLoader::loadNetwork()
 
     while (getNextLine(line))
     {
+        // Checks how the program should interepret the line.
         if (line == "grid")
         {
             network->grids.push_back(loadGrid());
@@ -27,6 +29,13 @@ std::unique_ptr<Network> NetworkLoader::loadNetwork()
     return network;
 }
 
+
+    /// Load a grid from the current stream position. Called from the constructor when the line "grid" is read
+    /// Expected section layout:
+    /// 1. base values line: <S_base> <V_base>
+    /// 2. edge list, terminated by '%'
+    /// 3. explicit node type list, terminated by '%'
+
 Grid NetworkLoader::loadGrid()
 {
     Grid grid;
@@ -40,12 +49,15 @@ Grid NetworkLoader::loadGrid()
     // Get edges.
     while (getNextLine(line))
     {
+        // Loops through the lines until it finds a line with only a '%' character which indicates the end of the edges list
         if (line == "%")
             // End of edges list
             break;
 
         sstream << line;
         GridEdge edge;
+
+        // Catches cases where the line contains invalid values
         if (!(sstream >> edge.parent) || edge.parent < 0)
         {
             throw NetworkLoaderError("Invalid edge parent index", curLine);
@@ -59,10 +71,17 @@ Grid NetworkLoader::loadGrid()
             throw NetworkLoaderError("Invalid edge impedance", curLine);
         }
 
+
+        // Commented line is for calculating impedence per edge
         // edge.z_c = edge.z_c / ((grid.vBase * grid.vBase) / grid.sBase); // Convert to per-unit
 
+
+        // If the edge is valid, add it to the grid and update the node count
         grid.edges.push_back(edge);
+
+        // We want to resize the nodeCount size later so that all nodes, and children are included. (+1 since the node indices are 0-based)
         nodeCount = std::max(nodeCount, std::max(edge.parent + 1, edge.child + 1));
+
         // Clear the stringstream for the next line
         sstream.str("");
         sstream.clear();
@@ -74,13 +93,17 @@ Grid NetworkLoader::loadGrid()
 
     if (nodeCount == 0)
     {
+        // If the loaded grid is empty, throw an error
         throw NetworkLoaderError("Empty grid", curLine);
     }
 
+
+    // Resize to the value calculated by nodeCount
     grid.nodes.resize(nodeCount);
 
     for (node_idx_t edgeIdx = 0; edgeIdx < grid.edges.size(); ++edgeIdx)
     {
+        // For each edge, add the edge index to the edges vector of the parent and child nodes of the edge
         GridEdge& edge = grid.edges[edgeIdx];
 
         grid.nodes.at(edge.parent).edges.push_back(edgeIdx);
@@ -107,31 +130,45 @@ Grid NetworkLoader::loadGrid()
         }
         if (type == "si")
         {
+            // Sets the type of the node to SLACK_IMPLICIT if the type is "si"
             grid.nodes.at(nodeIdx).type = NodeType::SLACK_IMPLICIT;
         }
         else if (type == "l")
         {
+            // Sets the type of the node to LOAD if the type is "l"
             grid.nodes.at(nodeIdx).type = NodeType::LOAD;
         }
         else if (type == "s")
         {
+            // Sets the type of the node to SLACK if the type is "s"
             grid.nodes.at(nodeIdx).type = NodeType::SLACK;
         }
         else if (type == "li")
         {
+            // Sets the type of the node to LOAD_IMPLICIT if the type is "li"
             grid.nodes.at(nodeIdx).type = NodeType::LOAD_IMPLICIT;
         }
         else
         {
             throw NetworkLoaderError("Invalid node type", curLine);
         }
+        // NOTE: If the node does specify a type, it will be set to MIDDLE
+
+
+
         // Clear the stringstream for the next line
         sstream.str("");
         sstream.clear();
     }
+    // The grid is now fully loaded, return it
     return grid;
 }
 
+
+/// Reads the base values for a grid from the next line of the input file.
+///
+/// The expected format is: <S_base> <V_base>
+/// S_base is base power of the grid, and V_base is the base voltage of the grid
 void NetworkLoader::getGridBase(Grid& grid)
 {
     std::string line;
@@ -139,6 +176,9 @@ void NetworkLoader::getGridBase(Grid& grid)
 
     getNextLine(line);
     sstream << line;
+
+
+    // Catches cases where the line contains invalid values or is missing values
     if (!(sstream >> grid.sBase))
     {
         throw NetworkLoaderError("Invalid S base", curLine);
@@ -148,14 +188,21 @@ void NetworkLoader::getGridBase(Grid& grid)
         throw NetworkLoaderError("Invalid V base", curLine);
     }
 
+
     std::string rest;
     std::getline(sstream, rest);
+
+
     if (rest.find_first_not_of(" ") != std::string::npos)
     {
         throw NetworkLoaderError("Invalid base line", curLine);
     }
 }
 
+
+
+/// Loads the list of connections from the network file. Expected format for each line is:
+/// <load implicit grid index> <load implicit node index> <slack implicit grid index> <slack implicit node index>
 std::vector<GridConnection> NetworkLoader::loadConnections()
 {
     std::vector<GridConnection> connections;
@@ -196,6 +243,9 @@ std::vector<GridConnection> NetworkLoader::loadConnections()
     return connections;
 }
 
+
+/// Returns the next line in the file. Skips empty lines and comment lines (lines starting with '#').
+/// True if a line was successfully read, false otherwise.
 bool NetworkLoader::getNextLine(std::string& line)
 {
     while (std::getline(file, line))

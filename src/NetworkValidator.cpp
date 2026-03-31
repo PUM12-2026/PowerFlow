@@ -15,26 +15,26 @@ void NetworkValidator::validateNetwork(const Network& network)
 
 void NetworkValidator::validateConnections(const Network& network)
 {
-    std::set<std::tuple<grid_idx_t, node_idx_t>> middleNodes;
-    std::set<std::tuple<grid_idx_t, node_idx_t>> slackNodes;
+    std::set<std::tuple<grid_idx_t, node_idx_t>> middleNodes; //Isn't used 
+    std::set<std::tuple<grid_idx_t, node_idx_t>> slackNodes; //Isn't used 
 
-    for (size_t connIdx = 0; connIdx < network.connections.size(); ++connIdx)
-    {
+    for (size_t connIdx = 0; connIdx < network.connections.size(); ++connIdx) //Loop through all edges in a network
+    { 
         const GridConnection& conn = network.connections.at(connIdx);
 
-        if (conn.loadImplicitGrid < 0 || conn.loadImplicitGrid >= network.grids.size())
+        if (conn.loadImplicitGrid < 0 || conn.loadImplicitGrid >= network.grids.size()) //Check that the edge is in range of the network. 
         {
             throw std::invalid_argument("Invalid grid number " + 
                 std::to_string(conn.loadImplicitGrid) + " in connection " + 
                 std::to_string(connIdx));
         }
-        if (conn.slackImplicitGrid < 0 || conn.slackImplicitGrid >= network.grids.size())
+        if (conn.slackImplicitGrid < 0 || conn.slackImplicitGrid >= network.grids.size()) //index checking
         {
             throw std::invalid_argument("Invalid grid number " +
                 std::to_string(conn.slackImplicitGrid) + " in connection " +
                 std::to_string(connIdx));
         }
-        if (conn.loadImplicitGrid == conn.slackImplicitGrid)
+        if (conn.loadImplicitGrid == conn.slackImplicitGrid) //A network shouldn't be connected to itself
         {
             throw std::invalid_argument("Connection in the same grid " + 
                 std::to_string(conn.loadImplicitGrid) + " not allowed");
@@ -108,22 +108,22 @@ void NetworkValidator::validateGrid(const Grid& grid, const grid_idx_t gridIdx)
     {
         const GridEdge& edge = grid.edges.at(edgeIdx);
 
-        if (edge.z_c == 0.0)
+        if (edge.z_c == 0.0) //Impedance shouldn't be 0 
         {
             throw std::invalid_argument("Invalid zero impedance in edge " +
                 std::to_string(edgeIdx) + " in grid " + std::to_string(gridIdx));
         }
-        if (edge.parent < 0 || edge.parent >= grid.nodes.size())
+        if (edge.parent < 0 || edge.parent >= grid.nodes.size()) //index for parent
         {
             throw std::invalid_argument("Invalid edge " + std::to_string(edgeIdx) + 
                 " parent in grid " + std::to_string(gridIdx));
         }
-        if (edge.child < 0 || edge.child >= grid.nodes.size())
+        if (edge.child < 0 || edge.child >= grid.nodes.size()) //index for childnode
         {
             throw std::invalid_argument("Invalid edge " + std::to_string(edgeIdx) +
                 " child in grid " + std::to_string(gridIdx));
         }
-        if (edge.child == edge.parent)
+        if (edge.child == edge.parent) // An edge shouldn't be connected to itself.
         {
             throw std::invalid_argument("Invalid edge " + std::to_string(edgeIdx) +
                 " that connects to the same node in grid " + std::to_string(gridIdx));
@@ -136,7 +136,7 @@ void NetworkValidator::validateGrid(const Grid& grid, const grid_idx_t gridIdx)
             const GridEdge& edge2 = grid.edges.at(edgeIdx2);
 
             if ((edge2.child == edge.child && edge2.parent == edge.parent) ||
-                (edge2.child == edge.parent && edge2.parent == edge.child))
+                (edge2.child == edge.parent && edge2.parent == edge.child)) //Check for dubble edges 
             {
                 throw std::invalid_argument("More than one edge detected between node " +
                     std::to_string(edge.parent) + " and node " + std::to_string(edge.child) +
@@ -144,7 +144,7 @@ void NetworkValidator::validateGrid(const Grid& grid, const grid_idx_t gridIdx)
             }
         }
     }
-
+    //Check that a slack node exist
     bool foundSlackNode = false;
     for (node_idx_t nodeIdx = 0; nodeIdx < grid.nodes.size(); ++nodeIdx)
     {
@@ -169,6 +169,7 @@ void NetworkValidator::validateGrid(const Grid& grid, const grid_idx_t gridIdx)
 }
 
 bool NetworkValidator::gridIsDisjoint(Grid const& grid)
+ //Checking for nodes that are not connected to the grid using DFS
 {
     std::stack<node_idx_t> todo_list{};
     std::unordered_set<node_idx_t> visited_nodes{};

@@ -14,7 +14,7 @@ SolverType GridAnalyzer::determineSolver(Grid const& grid)
         return BACKWARDFOWARDSWEEP;
     }
     else if (hasSingleSlackNode(grid) && grid.nodes.size() < ZBUSJACOBI_NODE_LIMIT)
-    {
+    { 
         return ZBUSJACOBI;
     }
     else
@@ -52,7 +52,7 @@ bool GridAnalyzer::isSuitableForBFS(Grid const& grid)
         // Verify that LOAD/LOAD_IMPLICIT nodes are leaf nodes.
         if ((current_grid_node.type == NodeType::LOAD ||
             current_grid_node.type == NodeType::LOAD_IMPLICIT) &&
-            current_grid_node.edges.size() != 1)
+            current_grid_node.edges.size() != 1) 
         {
             return false;
         }
@@ -89,7 +89,8 @@ bool GridAnalyzer::isSuitableForBFS(Grid const& grid)
 }
 
 bool GridAnalyzer::hasSingleSlackNode(Grid const& grid)
-{
+{   
+    //basic for-loop that counts how all slacknodes in a grid. 
     int slackNodes = 0;
 
     for (const GridNode& node : grid.nodes)
@@ -99,5 +100,6 @@ bool GridAnalyzer::hasSingleSlackNode(Grid const& grid)
             slackNodes++;
         }
     }
-    return slackNodes == 1;
+    //Return true if only 1 exists
+    return slackNodes == 1; 
 }

@@ -11,3 +11,4 @@ CMakePresets.json
 .vscode
 cov.info
 cov.cleaned.info
+.idea

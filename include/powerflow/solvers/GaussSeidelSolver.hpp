@@ -12,7 +12,7 @@ public:
     void reset() override;
 
 private:
-    std::vector<complex_t> y{};    // Admittances
+    std::vector<complex_t> y{};    // Admittance vector
     bool firstRun = true; // Used to indicate that slack powers have not been calculated
 
     // Checks if the solution has converged.

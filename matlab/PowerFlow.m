@@ -1,5 +1,7 @@
 classdef PowerFlow < handle
     properties (SetAccess = private, Hidden = true)
+        % Stores the network handle ID to simplify PowerFlowMex calls, e.g. PowerFlowMex("solve", S, V) 
+        % becomes power_flow.solve(S, V).
         networkHandle;
         loaded = false;
     end
@@ -12,7 +14,7 @@ classdef PowerFlow < handle
             end
             this.loaded = true;
         end
-        
+
         function delete(this)
             if this.loaded
                 PowerFlowMex("unload", this.networkHandle);

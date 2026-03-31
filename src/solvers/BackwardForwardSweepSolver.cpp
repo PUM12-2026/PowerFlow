@@ -10,6 +10,7 @@ BackwardForwardSweepSolver::BackwardForwardSweepSolver(Grid* grid,
     rootIdx = -1;
     for (node_idx_t i = 0; i < grid->nodes.size(); ++i)
     {
+        // Finds the index of root node.
         if (grid->nodes[i].type == NodeType::SLACK_IMPLICIT || grid->nodes[i].type == NodeType::SLACK)
         {
             rootIdx = i;
@@ -38,6 +39,7 @@ int BackwardForwardSweepSolver::solve()
     // SLACK power must be negative in the BFS algorithm.
     grid->nodes[rootIdx].s = -grid->nodes[rootIdx].s;
 
+    // Updates the complex power injection.
     while (!converged && iter++ < maxIterations)
     {
         sweep(rootIdx, -1);
@@ -117,19 +119,23 @@ bool BackwardForwardSweepSolver::hasConverged()
         if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
             continue;
 
+        // Complex current going through the node.
         complex_t yv = 0.0;
+
+        // Sum of neighbour admittances.
         complex_t ySum = 0.0;
 
         for (size_t edgeIdx : node.edges)
         {
             GridEdge& edge = grid->edges[edgeIdx];
-            int neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
+            node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
             GridNode& neighbor = grid->nodes[neighborIdx];
 
             complex_t y = 1.0 / edge.z_c;
             yv -= neighbor.v * y;
             ySum += y;
         }
+        // Update current
         yv += node.v * ySum;
 
         bool isLeaf = node.edges.size() == 1;

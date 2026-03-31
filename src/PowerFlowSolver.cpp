@@ -9,6 +9,8 @@
 #include <cmath>
 #include <iostream>
 
+// Constructor initilizes solver for a given network
+// Initilizes and validates network and settings
 PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSettings settings, Logger* const logger) : 
     network{ network }, settings{ std::move(settings) }, logger { logger } {
     if (settings.max_iterations_total <= 0)
@@ -44,6 +46,8 @@ PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSetting
     validator.validateNetwork(*network);
 }
 
+
+//Entry point for solving network
 void PowerFlowSolver::solve(const std::vector<complex_t>& S, const std::vector<complex_t>& V)
 {
 	if (firstRun)
@@ -51,11 +55,16 @@ void PowerFlowSolver::solve(const std::vector<complex_t>& S, const std::vector<c
 		createGridSolvers();
 		firstRun = false;
 	}
+
+    // Update network state
 	updateLoads(S);
 	updateExternalVoltages(V);
 	runGridSolvers();
 }
 
+
+// Creates appropriate GridSolvers for each grid in the network
+// Depending on the characteristics of the grid
 void PowerFlowSolver::createGridSolvers()
 {
     GridAnalyzer analyzer;
@@ -63,6 +72,7 @@ void PowerFlowSolver::createGridSolvers()
 
     for (Grid& grid : network->grids)
     {
+        // Decide which solver algorithm fits the grid structure
         switch (analyzer.determineSolver(grid))
         {
             case GAUSSSEIDEL:
@@ -96,6 +106,8 @@ void PowerFlowSolver::createGridSolvers()
     }
 }
 
+
+// Updates LOAD node powers 
 void PowerFlowSolver::updateLoads(const std::vector<complex_t>& S)
 {
     size_t pIdx = 0;
@@ -120,6 +132,8 @@ void PowerFlowSolver::updateLoads(const std::vector<complex_t>& S)
     }
 }
 
+
+// Updates SLACK node voltages
 void PowerFlowSolver::updateExternalVoltages(const std::vector<complex_t>& V)
 {
     size_t vIdx = 0;
@@ -144,6 +158,8 @@ void PowerFlowSolver::updateExternalVoltages(const std::vector<complex_t>& V)
     }
 }
 
+
+// Runs the GridSolvers and combines the result
 void PowerFlowSolver::runGridSolvers()
 {
 	int iter = 0;
@@ -152,12 +168,18 @@ void PowerFlowSolver::runGridSolvers()
     do
     {
         maxGridIter = 0;
+
+        // Solve each grid independently
         for (std::unique_ptr<GridSolver>& solver : gridSolvers)
         {
             int gridIter = solver->solve();
+
+            // Track worst convergence
             maxGridIter = std::max(gridIter, maxGridIter);
 		}
-        // Update connections (simulates "fake" connection with z = 0).
+
+        // Update connections between grids
+        //Simulates "fake" connection with z = 0
         for (GridConnection& connection : network->connections)
         {
             Grid& loadImplicitGrid = network->grids[connection.loadImplicitGrid];
@@ -165,19 +187,25 @@ void PowerFlowSolver::runGridSolvers()
             GridNode& loadImplicitNode = loadImplicitGrid.nodes[connection.loadImplicitNode];
             GridNode& slackImplicitNode = slackImplicitGrid.nodes[connection.slackImplicitNode];
 
+            // Transfer power between grids
             loadImplicitNode.s = -((slackImplicitNode.s * slackImplicitGrid.sBase) / loadImplicitGrid.sBase);
+            
+            // Enforce equal voltage
             slackImplicitNode.v = loadImplicitNode.v;
         }
         iter++;
 	}
     while (maxGridIter > 0 && iter < settings.max_iterations_total);
 
+    // If solution hasnt converged after max number of iterations
     if (maxGridIter > 0)
     {
         throw std::runtime_error("PowerFlowSolver: The solution did not converge. Maximum number of iterations reached.");
     }
 }
 
+
+// Returns all LOAD voltages in the network
 std::vector<complex_t> PowerFlowSolver::getLoadVoltages() const
 {
     std::vector<complex_t> U;
@@ -195,6 +223,8 @@ std::vector<complex_t> PowerFlowSolver::getLoadVoltages() const
     return U;
 }
 
+
+// Returns all voltages in the network
 std::vector<complex_t> PowerFlowSolver::getAllVoltages() const
 {
     std::vector<complex_t> result{};
@@ -209,6 +239,8 @@ std::vector<complex_t> PowerFlowSolver::getAllVoltages() const
     return result;
 }
 
+
+// Returns all currents in the network
 std::vector<complex_t> PowerFlowSolver::getCurrents() const
 {
     std::vector<complex_t> result{};
@@ -218,6 +250,8 @@ std::vector<complex_t> PowerFlowSolver::getCurrents() const
         for (GridEdge const &e : g.edges)
         {
             GridNode p{g.nodes[e.parent]}, c{g.nodes[e.child]};
+
+            //Avoid division by zero if impedance zero substitute by small number
             complex_t impedance = (e.z_c !=  0.0) ? e.z_c : static_cast<complex_t>(settings.gauss_seidel_precision);
             complex_t current{(p.v - c.v) / (impedance * SQRT3)};
             result.push_back(current);
@@ -226,6 +260,8 @@ std::vector<complex_t> PowerFlowSolver::getCurrents() const
     return result;
 }
 
+
+// Returns all SLACK_IMPLICIT/SLACK powers in the network
 std::vector<complex_t> PowerFlowSolver::getSlackPowers() const
 {
     std::vector<complex_t> result{};
@@ -243,6 +279,8 @@ std::vector<complex_t> PowerFlowSolver::getSlackPowers() const
     return result;
 }
 
+
+// Resets powers to 0 and voltages to 1
 void PowerFlowSolver::reset()
 {
     for (std::unique_ptr<GridSolver>& solver : gridSolvers)
