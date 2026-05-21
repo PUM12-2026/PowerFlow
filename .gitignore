@@ -12,3 +12,4 @@ CMakePresets.json
 cov.info
 cov.cleaned.info
 .idea
+__pycache__

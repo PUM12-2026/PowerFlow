@@ -22,6 +22,8 @@ function testIntegration()
 
     power_flow.solve(S, V);
     verifySolveState(power_flow);
+    verifyCableParamsMajority(power_flow);
+    verifyCableParamsRegression();
 
     power_flow.reset();
     verifyResetState(power_flow);
@@ -99,6 +101,76 @@ function verifyResetState(power_flow)
     for i = 1:length(all_currents_powers)
         x = all_currents_powers(i);
         assert(x == complex(0.0, 0.0), 'Value %f+%fi did not reset to 0.0+0j.', real(x), imag(x));
+    end
+end
+
+function [keys, vals] = getAbsoluteVoltages(power_flow)
+    %{ 
+        Get the absolute values of the voltages. 
+    %} 
+    
+    voltages = power_flow.getLoadVoltages();
+    vals = complex(abs(voltages)); % Ensure it is complex double for MEX
+    keys = int32(0:length(voltages)-1); % node_idx_t is int (int32)
+end 
+
+function verifyCableParamsMajority(power_flow)
+    %{ 
+        Verify that the cable parameters are correct after a solve. 
+    %} 
+
+    fprintf('Verifying cable parameters majority...\n');
+    
+    params = power_flow.getImpedances();
+    checkListTypes(params, 'impedances', 7);
+
+    impedances_before = power_flow.getImpedances();
+    
+    [keys, vals] = getAbsoluteVoltages(power_flow);
+    power_flow.solveParams(keys, vals, 1e-4);
+    
+    checkListTypes(power_flow.getImpedances(), 'impedances', 7);
+    
+    impedances_after = power_flow.getImpedances();
+    
+    for i = 1:length(impedances_before)
+        assert(impedances_before(i) == impedances_after(i), ...
+            'Impedances changed after solveParams, when it should not have. %f+%fi != %f+%fi', ...
+            real(impedances_before(i)), imag(impedances_before(i)), ...
+            real(impedances_after(i)), imag(impedances_after(i)));
+    end
+end 
+
+function verifyCableParamsRegression()
+    %{ 
+        Verify that the cable parameters are correct after a solve using regression. 
+    %} 
+
+    fprintf('Verifying cable parameters regression...\n');
+    
+    [keys, U, S_load, slack_V] = regression_data();
+    
+    settings = struct();
+    ref_network_path = string(fullfile(pwd, 'examples', 'net_large_ref.txt'));
+    fault_network_path = string(fullfile(pwd, 'examples', 'net_large_test.txt'));
+    power_flow_ref = PowerFlow(ref_network_path, settings);
+    power_flow_fault = PowerFlow(fault_network_path, settings);
+    
+    checkListTypes(power_flow_ref.getImpedances(), 'impedances');
+    checkListTypes(power_flow_fault.getImpedances(), 'impedances');
+
+    ref_impedances = power_flow_ref.getImpedances();
+    
+    power_flow_fault.solveParamsReg(keys, U, S_load, slack_V, 3e-4, 20);
+    
+    checkListTypes(power_flow_fault.getImpedances(), 'impedances');
+    
+    estimated_impedances = power_flow_fault.getImpedances();
+    
+    for i = 1:length(ref_impedances)
+        err = abs(ref_impedances(i) - estimated_impedances(i)) / abs(ref_impedances(i));
+        assert(err <= 1.1e-2, ...
+            'Impedance %d is incorrect after parameter regression. Error %f', i, err);
     end
 end
 

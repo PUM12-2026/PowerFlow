@@ -1,4 +1,4 @@
-add_executable(UnitTests main.cpp)
+add_executable(UnitTests main.cpp parameters/testParameters.cpp parameters/parameterUtils.cpp)
 if(GITHUB_VM)
     target_compile_definitions(UnitTests PRIVATE GITHUB_VM)
 endif()

@@ -62,6 +62,21 @@ void PowerFlowSolver::solve(const std::vector<complex_t>& S, const std::vector<c
 	runGridSolvers();
 }
 
+void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t> &V, double precision)
+{
+    for (Grid& grid : network->grids)
+    {
+        ParameterValidator pv = ParameterValidator(&grid, logger, V, precision);
+        pv.validate();
+    }
+}
+
+void PowerFlowSolver::solveParamsReg(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations)
+{
+    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, {}, 1e9);
+    pv.validateRegression(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+}
 
 // Creates appropriate GridSolvers for each grid in the network
 // Depending on the characteristics of the grid
@@ -276,6 +291,21 @@ std::vector<complex_t> PowerFlowSolver::getSlackPowers() const
             }
         }
     }
+    return result;
+}
+
+std::vector<complex_t> PowerFlowSolver::getImpedances() const
+{
+    std::vector<complex_t> result;
+    
+    for (Grid const &g : network->grids)
+    {
+        for (GridEdge const &e : g.edges)
+        {
+            result.push_back(e.z_c);
+        }
+    }
+
     return result;
 }
 

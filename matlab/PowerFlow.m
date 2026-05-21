@@ -26,6 +26,14 @@ classdef PowerFlow < handle
             PowerFlowMex("solve", this.networkHandle, S, V);
         end
 
+        function solveParams(this, keysV, valsV, precision)
+            PowerFlowMex("solveParams", this.networkHandle, keysV, valsV, precision);
+        end
+
+        function solveParamsReg(this, keys, voltages, powerInjections, slackVoltages, convergenceThreshold, maxIterations)
+            PowerFlowMex("solveParamsReg", this.networkHandle, keys, voltages, powerInjections, slackVoltages, convergenceThreshold, maxIterations);
+        end
+
         function [V] = getLoadVoltages(this)
             V = PowerFlowMex("getLoadVoltages", this.networkHandle);
         end
@@ -40,6 +48,10 @@ classdef PowerFlow < handle
 
         function [S] = getSlackPowers(this)
             S = PowerFlowMex("getSlackPowers", this.networkHandle);
+        end
+
+        function [Z] = getImpedances(this)
+            Z = PowerFlowMex("getImpedances", this.networkHandle);
         end
 
         function reset(this)

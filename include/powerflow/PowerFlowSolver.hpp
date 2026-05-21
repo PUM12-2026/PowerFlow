@@ -4,10 +4,12 @@
 #include "powerflow/network.hpp"
 #include "powerflow/solvers/GridSolver.hpp"
 #include "powerflow/logger/Logger.hpp"
+#include "powerflow/ParameterValidator.hpp"
 #include <memory>
 #include <tuple>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 // Settings that can be passed to the solver.
 struct SolverSettings
@@ -31,6 +33,35 @@ public:
 
     // Solve network.
     void solve(const std::vector<complex_t> &P, const std::vector<complex_t> &V);
+
+    /** 
+     * @brief Identifies invalid parameters and adjusts them. 
+     * 
+     * WARNING: This solver is not recommended. It only detects invalid parameters in some
+     * cases. In testing it only detects invalid parameters when the true impedance differs 
+     * from the nominal impedance by at least 60%. 
+     * 
+     * Use solveParamsReg instead.
+     */ 
+    void solveParams(const std::unordered_map<node_idx_t, complex_t> &V, double precision);
+
+    /**  
+     * Implementation of inverse BFS
+     * https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/stg2.12177.
+     * Assumes all LOAD nodes are leaf nodes, and vice versa.
+     * Assumes the grid is radial.
+     * Assumes low power losses (S_loss) in cables.
+     * Assumes there is one grid.
+     * 
+     * NOTE: Will update impedances in grid, even if the algorithm fails to converge.
+     * 
+     * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
+     * @param slackVoltages Time-series voltages at SLACK node
+     * @param convergenceThreshold Minimum change in impedances between iterations before convergence is accepted
+     * @param maxIterations Max amount of iterations
+     */
+    void solveParamsReg(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations);
     
 	// Returns all LOAD voltages in the network.
 	std::vector<complex_t> getLoadVoltages() const;
@@ -43,6 +74,9 @@ public:
 
     // Returns all SLACK_IMPLICIT/SLACK powers in the network.
     std::vector<complex_t> getSlackPowers() const;
+
+    // Returns all cable impedances in the network.
+    std::vector<complex_t> getImpedances() const;
 
     // Resets powers to 0 and voltages to 1.
     void reset();

@@ -71,6 +71,14 @@ public:
         {
             solve(outputs, inputs);
         }
+        else if (command == "solveParams")
+        {
+            solveParams(outputs, inputs);
+        }
+        else if (command == "solveParamsReg")
+        {
+            solveParamsReg(outputs, inputs);
+        }
         else if (command == "getLoadVoltages")
         {
             getLoadVoltages(outputs, inputs);
@@ -86,6 +94,10 @@ public:
         else if (command == "getSlackPowers")
         {
             getSlackPowers(outputs, inputs);
+        }
+        else if (command == "getImpedances")
+        {
+            getImpedances(outputs, inputs);
         }
         else if (command == "reset")
         {
@@ -233,7 +245,7 @@ private:
         {
             throw std::invalid_argument("Missing or invalid S vector");
         }
-        if (inputs.size() < 4 || inputs[3].getType() != matlab::data::ArrayType::COMPLEX_DOUBLE && !inputs[3].isEmpty())
+        if (inputs.size() < 4 || (inputs[3].getType() != matlab::data::ArrayType::COMPLEX_DOUBLE && !inputs[3].isEmpty()))
         {
             throw std::invalid_argument("Missing or invalid V vector");
         }
@@ -247,6 +259,53 @@ private:
         std::vector<complex_t> V(matlabV.begin(), matlabV.end());
 
         solver->solve(S, V);
+    }
+
+    void solveParamsReg(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<complex_t> voltages = inputs[3];
+        matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
+        matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
+        double convergenceThreshold = inputs[6][0];
+        int maxIterations = static_cast<int>(inputs[7][0]);
+
+        size_t samples = voltages.getDimensions()[1];
+
+        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        for (size_t i = 0; i < keys.getNumberOfElements(); i++)
+        {
+            MeasuredValues val;
+
+            for (size_t j = 0; j < samples; j++)
+            {
+                val.U.push_back(voltages[i][j]);
+                val.S.push_back(powerInjections[i][j]);
+            }
+
+            measuredValues[keys[i]] = std::move(val);
+        }
+
+        std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
+        solver->solveParamsReg(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+    }
+
+    void solveParams(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<complex_t> vals = inputs[3];
+        double precision = inputs[4][0];
+
+        std::unordered_map<node_idx_t, complex_t> V;
+        for (size_t i = 0; i < keys.getNumberOfElements(); i++)
+        {
+            V[keys[i]] = vals[i];
+        }
+        solver->solveParams(V, precision);
     }
 
     void getLoadVoltages(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
@@ -279,6 +338,14 @@ private:
         std::vector<complex_t> S = solver->getSlackPowers();
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createArray({1, S.size()}, S.begin(), S.end());
+    }
+
+    void getImpedances(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<complex_t> Z = solver->getImpedances();
+        matlab::data::ArrayFactory factory;
+        outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
