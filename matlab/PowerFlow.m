@@ -54,6 +54,22 @@ classdef PowerFlow < handle
             Z = PowerFlowMex("getImpedances", this.networkHandle);
         end
 
+        function [dvds] = getDvDs(this)
+            dvds = PowerFlowMex("getDvDs", this.networkHandle);
+        end
+
+        function [dids] = getDiDs(this)
+            dids = PowerFlowMex("getDiDs", this.networkHandle);
+        end
+
+        function [dsds] = getDsDs(this)
+            dsds = PowerFlowMex("getDsDs", this.networkHandle);
+        end
+
+        function [dslossds] = getDslossDs(this)
+            dslossds = PowerFlowMex("getDslossDs", this.networkHandle);
+        end
+
         function reset(this)
             PowerFlowMex("reset", this.networkHandle);
         end

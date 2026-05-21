@@ -12,4 +12,6 @@ CMakePresets.json
 cov.info
 cov.cleaned.info
 .idea
+examples/*.pyi
+matlab/*.mexmaca64
 __pycache__

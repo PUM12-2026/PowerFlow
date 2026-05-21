@@ -58,9 +58,9 @@ int GaussSeidelSolver::solve()
                 ySum += y[edgeIdx];
             }
             yv += node.v * ySum;
-            node.v = node.v - (yv - std::conj(node.s / node.v)) / ySum;
+            node.v = node.v - (yv - std::conj((-node.s) / node.v)) / ySum;
 
-            if (std::abs(node.v * std::conj(yv) - node.s) > precision)
+            if (std::abs(node.v * std::conj(yv) + node.s) > precision)
             {
                 converged = false;
             }
@@ -131,7 +131,7 @@ bool GaussSeidelSolver::hasConverged()
         }
         yv += node.v * ySum;
 
-        if (std::abs(node.v * std::conj(yv) - node.s) > precision)
+        if (std::abs(node.v * std::conj(yv) + node.s) > precision)
         {
             return false;
         }

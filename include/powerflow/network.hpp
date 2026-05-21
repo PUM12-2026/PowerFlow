@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <complex>
+#include <Eigen/Core>
 
 // Type definitions for the project
 using complex_t = std::complex<double>;
@@ -56,6 +57,26 @@ struct Grid
     std::vector<GridNode> nodes{};
     double sBase = 1;
     double vBase = 1;
+
+    // NOTE: Only exists when computing with BFS through the networks,
+    // and used to store the gradients of each node in the grid, except
+    // households, with respect to the effect of each household node.
+    std::vector<std::vector<Eigen::Matrix2d>> dSdS{};
+
+    // NOTE: Only exists when computing with BFS through the networks,
+    // and used to store the gradients of each cable in the grid with
+    // respect to the effect of each household node.
+    std::vector<std::vector<Eigen::Matrix2d>> dSlossdS{};
+
+    // NOTE: Only exists when computing with BFS through the networks,
+    // and used to store the gradients of each cable in the grid with
+    // respect to the effect of each household node.
+    std::vector<std::vector<Eigen::Matrix2d>> dIdS{};
+
+    // NOTE: Only exists when computing with BFS through the networks,
+    // and used to store the gradients of each node, except the slack (root) node,
+    // in the grid with respect to the effect of each household node.
+    std::vector<std::vector<Eigen::Matrix2d>> dVdS{};
 };
 
 // Network of grids with connections between them.

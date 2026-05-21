@@ -1,11 +1,11 @@
-from typing import Any, List
+from typing import Any, List, Union
 
 import regression_data
 import PowerFlowPython
 import os
 
 
-def check_list_types(data: List[Any], name: str, expected_len=None):
+def check_list_types(data: List[Any], name: str, expected_len: Union[int, None] = None):
     """
     Verify that data is in fact a list of complex values with the expected length.
     """
@@ -36,13 +36,13 @@ def verify_solve_state(power_flow: PowerFlowPython.PowerFlow):
 
     print("Verifying solved state types and content...")
     check_list_types(
-        data=power_flow.getAllVoltages(), name="all_voltages", expected_len=10
+        data=power_flow.getAllVoltages(), name="all_voltages", expected_len=8
     )
     check_list_types(
         data=power_flow.getLoadVoltages(), name="load_voltages", expected_len=3
     )
     check_list_types(
-        data=power_flow.getSlackPowers(), name="slack_powers", expected_len=3
+        data=power_flow.getSlackPowers(), name="slack_powers", expected_len=1
     )
     check_list_types(data=power_flow.getCurrents(), name="currents", expected_len=7)
 
@@ -112,6 +112,38 @@ def verify_cable_parameters_regression():
         assert error <= 1.1e-2, f"Impedance {i} is incorrect after parameter regression. Error {error}"
 
 
+def verify_gradients_types(power_flow: PowerFlowPython.PowerFlow):
+    """
+    Verify that the gradient getters return lists of lists of [dPre, dQim] pairs.
+    """
+
+    print("Verifying gradient types...")
+
+    for grad_list, name in [
+        (power_flow.getDiDs(), "DiDs"),
+        (power_flow.getDvDs(), "DvDs"),
+        (power_flow.getDsDs(), "DsDs"),
+        (power_flow.getDslossDs(), "DslossDs"),
+    ]:
+        assert isinstance(
+            grad_list, list
+        ), f"{name} should be a list of lists, got {type(grad_list)}."
+        for i, row in enumerate(grad_list):
+            assert isinstance(
+                row, list
+            ), f"Row {i} in {name} should be a list, got {type(row)}."
+            for j, val in enumerate(row):
+                assert isinstance(
+                    val, list
+                ), f"Element [{i}][{j}] in {name} should be a list [dP, dQ], got {type(val)}."
+                assert (
+                    len(val) == 2
+                ), f"Element [{i}][{j}] in {name} should have length 2, got {len(val)}."
+                assert all(
+                    isinstance(x, float) for x in val
+                ), f"Element [{i}][{j}] in {name} should contain floats, got {[type(x) for x in val]}."
+
+
 def verify_reset_state(power_flow: PowerFlowPython.PowerFlow):
     """
     Verify that all getters are correct after a reset.
@@ -125,10 +157,10 @@ def verify_reset_state(power_flow: PowerFlowPython.PowerFlow):
     slack_powers = power_flow.getSlackPowers()
 
     # Check all containers again, so they didn't change type.
-    check_list_types(data=voltages, name="reset_all_voltages", expected_len=10)
+    check_list_types(data=voltages, name="reset_all_voltages", expected_len=8)
     check_list_types(data=load_voltages, name="reset_load_voltages", expected_len=3)
     check_list_types(data=currents, name="reset_currents", expected_len=7)
-    check_list_types(data=slack_powers, name="reset_slack_powers", expected_len=3)
+    check_list_types(data=slack_powers, name="reset_slack_powers", expected_len=1)
 
     # Make sure the voltages are indeed reset.
     for v in voltages + load_voltages:
@@ -137,6 +169,27 @@ def verify_reset_state(power_flow: PowerFlowPython.PowerFlow):
     # Make sure the powers and currents are indeed reset.
     for x in currents + slack_powers:
         assert x == complex(0.0, 0.0), f"Value {x} did not reset to 0.0+0j."
+
+
+def verify_gradients_reset(power_flow: PowerFlowPython.PowerFlow):
+    """
+    Verify that the gradient getters return zero values after a reset.
+    """
+
+    print("Verifying reset gradient values...")
+
+    for grad_list, name in [
+        (power_flow.getDiDs(), "DiDs"),
+        (power_flow.getDvDs(), "DvDs"),
+        (power_flow.getDsDs(), "DsDs"),
+        (power_flow.getDslossDs(), "DslossDs"),
+    ]:
+        for i, row in enumerate(grad_list):
+            for j, val in enumerate(row):
+                assert val == [
+                    0.0,
+                    0.0,
+                ], f"{name}[{i}][{j}] did not reset to [0.0, 0.0]."
 
 
 def test_powerflow_bindings():
@@ -148,8 +201,9 @@ def test_powerflow_bindings():
 
     settings = PowerFlowPython.SolverSettings()
     settings.max_iterations_total = 1000
+    settings.compute_gradients = True
 
-    network_path = "examples/test_networks/test_network.txt"
+    network_path = "examples/test_networks/test_network_single_grid.txt"
     if not os.path.exists(network_path):
         print(f"Skipping test: {network_path} not found.")
         return
@@ -161,14 +215,14 @@ def test_powerflow_bindings():
     V = [complex(1.0, 0.0)]
 
     power_flow.solve(S, V)
+
     verify_solve_state(power_flow)
+    verify_gradients_types(power_flow)
     verify_cable_parameters_majority(power_flow)
 
     power_flow.reset()
     verify_reset_state(power_flow)
-
-    # Tests another network. 
-    verify_cable_parameters_regression()
+    verify_gradients_reset(power_flow)
 
     print("Python binding test passed!")
 

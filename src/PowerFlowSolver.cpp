@@ -11,8 +11,8 @@
 
 // Constructor initilizes solver for a given network
 // Initilizes and validates network and settings
-PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSettings settings, Logger* const logger) : 
-    network{ network }, settings{ std::move(settings) }, logger { logger } {
+PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSettings settings, Logger *const logger) : network{network}, settings{std::move(settings)}, logger{logger}
+{
     if (settings.max_iterations_total <= 0)
     {
         throw std::invalid_argument("Invalid max_iterations_total value");
@@ -46,20 +46,19 @@ PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSetting
     validator.validateNetwork(*network);
 }
 
-
-//Entry point for solving network
-void PowerFlowSolver::solve(const std::vector<complex_t>& S, const std::vector<complex_t>& V)
+// Entry point for solving network
+void PowerFlowSolver::solve(const std::vector<complex_t> &S, const std::vector<complex_t> &V)
 {
-	if (firstRun)
+    if (firstRun)
     {
-		createGridSolvers();
-		firstRun = false;
-	}
+        createGridSolvers();
+        firstRun = false;
+    }
 
     // Update network state
-	updateLoads(S);
-	updateExternalVoltages(V);
-	runGridSolvers();
+    updateLoads(S);
+    updateExternalVoltages(V);
+    runGridSolvers();
 }
 
 void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t> &V, double precision)
@@ -85,140 +84,208 @@ void PowerFlowSolver::createGridSolvers()
     GridAnalyzer analyzer;
     int gridNo = 0;
 
-    for (Grid& grid : network->grids)
+    size_t totalLeafCount = 0;
+
+    // Collect total leaf count from all grids in the network.
+    for (const Grid &grid : network->grids)
     {
+        for (size_t nodeIdx = 0; nodeIdx < grid.nodes.size(); ++nodeIdx)
+        {
+            if (grid.nodes[nodeIdx].type == NodeType::LOAD)
+            {
+                totalLeafCount++;
+            }
+        }
+    }
+
+    size_t networkLeafIdx = 0;
+    for (Grid &grid : network->grids)
+    {
+        // Collect leaf indices for this grid, which are needed for BFS.
+        std::vector<size_t> gridLeafIndicies;
+        for (size_t nodeIdx = 0; nodeIdx < grid.nodes.size(); ++nodeIdx)
+        {
+            if (grid.nodes[nodeIdx].type == NodeType::LOAD)
+            {
+                gridLeafIndicies.push_back(networkLeafIdx++);
+            }
+        }
+
         // Decide which solver algorithm fits the grid structure
         switch (analyzer.determineSolver(grid))
         {
-            case GAUSSSEIDEL:
+        case GAUSSSEIDEL:
+        {
+            *logger << "Found grid number " << gridNo << " suitable for Gauss-Seidel" << std::endl;
+
+            if (settings.compute_gradients)
             {
-                *logger << "Found grid number " << gridNo << " suitable for Gauss-Seidel" << std::endl;
-                std::unique_ptr<GaussSeidelSolver> gs = std::make_unique<GaussSeidelSolver>(&grid, logger,
-                    settings.max_iterations_gauss, settings.gauss_seidel_precision);
-                gridSolvers.push_back(std::move(gs));
-                break;
+                *logger << "Gradients will not be computed." << std::endl;
+                settings.compute_gradients = false;
             }
-            case BACKWARDFOWARDSWEEP:
+
+            std::unique_ptr<GaussSeidelSolver> gs = std::make_unique<GaussSeidelSolver>(
+                &grid, logger,
+                settings.max_iterations_gauss,
+                settings.gauss_seidel_precision // ,
+            );
+            gridSolvers.push_back(std::move(gs));
+            break;
+        }
+        case BACKWARDFOWARDSWEEP:
+        {
+            *logger << "Found grid number " << gridNo << " suitable for BFS" << std::endl;
+            std::unique_ptr<BackwardForwardSweepSolver> bfs = std::make_unique<BackwardForwardSweepSolver>(
+                &grid, logger,
+                settings.max_iterations_bfs,
+                settings.bfs_precision,
+                settings.compute_gradients,
+                totalLeafCount,
+                gridLeafIndicies // ,
+            );
+            gridSolvers.push_back(std::move(bfs));
+            break;
+        }
+        case ZBUSJACOBI:
+        {
+            *logger << "Found grid number " << gridNo << " suitable for ZBus Jacobi" << std::endl;
+
+            if (settings.compute_gradients)
             {
-                *logger << "Found grid number " << gridNo << " suitable for BFS" << std::endl;
-                std::unique_ptr<BackwardForwardSweepSolver> bfs = std::make_unique<BackwardForwardSweepSolver>(&grid, logger,
-                    settings.max_iterations_bfs, settings.bfs_precision);
-                gridSolvers.push_back(std::move(bfs));
-                break;
+                *logger << "Gradients will not be computed." << std::endl;
+                settings.compute_gradients = false;
             }
-            case ZBUSJACOBI:
-            {
-                *logger << "Found grid number " << gridNo << " suitable for ZBus Jacobi" << std::endl;
-                std::unique_ptr<ZBusJacobiSolver> bfs = std::make_unique<ZBusJacobiSolver>(&grid, logger,
-                    settings.max_iterations_zbusjacobi, settings.zbusjacobi_precision);
-                gridSolvers.push_back(std::move(bfs));
-                break;
-            }
-            default:
-                throw std::runtime_error("No suitable solver found for grid number " + gridNo);
+
+            std::unique_ptr<ZBusJacobiSolver> bfs = std::make_unique<ZBusJacobiSolver>(
+                &grid, logger,
+                settings.max_iterations_zbusjacobi,
+                settings.zbusjacobi_precision // ,
+            );
+            gridSolvers.push_back(std::move(bfs));
+            break;
+        }
+        default:
+            throw std::runtime_error("No suitable solver found for grid number " + std::to_string(gridNo));
         }
         ++gridNo;
     }
 }
 
-
-// Updates LOAD node powers 
-void PowerFlowSolver::updateLoads(const std::vector<complex_t>& S)
+// Updates LOAD node powers
+void PowerFlowSolver::updateLoads(const std::vector<complex_t> &S)
 {
-    size_t pIdx = 0;
+    size_t powerIdx = 0;
 
-    for (Grid& grid : network->grids)
+    for (Grid &grid : network->grids)
     {
-        for (GridNode& node : grid.nodes)
+        for (GridNode &node : grid.nodes)
         {
             if (node.type == NodeType::LOAD)
             {
-                if (pIdx == S.size())
+                if (powerIdx == S.size())
                 {
                     throw std::runtime_error("S has too few elements");
                 }
-                node.s = -S.at(pIdx++); // NOTE negative sign!
+                node.s = S.at(powerIdx++);
             }
         }
     }
-    if (pIdx != S.size())
+    if (powerIdx != S.size())
     {
         throw std::runtime_error("S is of incorrect size");
     }
 }
 
-
 // Updates SLACK node voltages
-void PowerFlowSolver::updateExternalVoltages(const std::vector<complex_t>& V)
+void PowerFlowSolver::updateExternalVoltages(const std::vector<complex_t> &V)
 {
-    size_t vIdx = 0;
+    size_t voltageIdx = 0;
 
-    for (Grid& grid : network->grids)
+    for (Grid &grid : network->grids)
     {
-        for (GridNode& node : grid.nodes)
+        for (GridNode &node : grid.nodes)
         {
             if (node.type == NodeType::SLACK)
             {
-                if (vIdx == V.size())
+                if (voltageIdx == V.size())
                 {
                     throw std::runtime_error("V has too few elements");
                 }
-                node.v = V.at(vIdx++);
+                node.v = V.at(voltageIdx++);
             }
         }
     }
-    if (vIdx != V.size())
+    if (voltageIdx != V.size())
     {
         throw std::runtime_error("V is of incorrect size");
     }
 }
 
-
 // Runs the GridSolvers and combines the result
 void PowerFlowSolver::runGridSolvers()
 {
-	int iter = 0;
-	int maxGridIter = 0;
+    int iteration = 0;
+    int maxGridIteration = 0;
 
     do
     {
-        maxGridIter = 0;
+        maxGridIteration = 0;
 
         // Solve each grid independently
-        for (std::unique_ptr<GridSolver>& solver : gridSolvers)
+        for (std::unique_ptr<GridSolver> &solver : gridSolvers)
         {
             int gridIter = solver->solve();
 
             // Track worst convergence
-            maxGridIter = std::max(gridIter, maxGridIter);
-		}
+            maxGridIteration = std::max(gridIter, maxGridIteration);
+        }
 
         // Update connections between grids
-        //Simulates "fake" connection with z = 0
-        for (GridConnection& connection : network->connections)
+        // Simulates "fake" connection with z = 0
+        for (GridConnection &connection : network->connections)
         {
-            Grid& loadImplicitGrid = network->grids[connection.loadImplicitGrid];
-            Grid& slackImplicitGrid = network->grids[connection.slackImplicitGrid];
-            GridNode& loadImplicitNode = loadImplicitGrid.nodes[connection.loadImplicitNode];
-            GridNode& slackImplicitNode = slackImplicitGrid.nodes[connection.slackImplicitNode];
+            Grid &loadImplicitGrid = network->grids[connection.loadImplicitGrid];
+            Grid &slackImplicitGrid = network->grids[connection.slackImplicitGrid];
+            GridNode &loadImplicitNode = loadImplicitGrid.nodes[connection.loadImplicitNode];
+            GridNode &slackImplicitNode = slackImplicitGrid.nodes[connection.slackImplicitNode];
 
             // Transfer power between grids
-            loadImplicitNode.s = -((slackImplicitNode.s * slackImplicitGrid.sBase) / loadImplicitGrid.sBase);
-            
+            loadImplicitNode.s = ((slackImplicitNode.s * slackImplicitGrid.sBase) / loadImplicitGrid.sBase);
+
+            // Transfer sensitivities for dS/dS between grids, after having updated power.
+            if (!loadImplicitGrid.dSdS.empty() && !slackImplicitGrid.dSdS.empty())
+            {
+                for (size_t i = 0; i < loadImplicitGrid.dSdS[connection.loadImplicitNode].size(); ++i)
+                {
+                    auto dSdS = slackImplicitGrid.dSdS[connection.slackImplicitNode][i];
+                    auto normalizedDsdS = dSdS * (slackImplicitGrid.sBase / loadImplicitGrid.sBase);
+                    loadImplicitGrid.dSdS[connection.loadImplicitNode][i] = normalizedDsdS;
+                }
+            }
+
             // Enforce equal voltage
             slackImplicitNode.v = loadImplicitNode.v;
+
+            // Transfer sensitivities for dV/dS between grids, after having updated voltage.
+            if (!loadImplicitGrid.dVdS.empty() && !slackImplicitGrid.dVdS.empty())
+            {
+                for (size_t i = 0; i < slackImplicitGrid.dVdS[connection.slackImplicitNode].size(); ++i)
+                {
+                    auto dVdS = loadImplicitGrid.dVdS[connection.loadImplicitNode][i];
+                    slackImplicitGrid.dVdS[connection.slackImplicitNode][i] = dVdS;
+                }
+            }
         }
-        iter++;
-	}
-    while (maxGridIter > 0 && iter < settings.max_iterations_total);
+
+        iteration++;
+    } while (maxGridIteration > 0 && iteration < settings.max_iterations_total);
 
     // If solution hasnt converged after max number of iterations
-    if (maxGridIter > 0)
+    if (maxGridIteration > 0)
     {
         throw std::runtime_error("PowerFlowSolver: The solution did not converge. Maximum number of iterations reached.");
     }
 }
-
 
 // Returns all LOAD voltages in the network
 std::vector<complex_t> PowerFlowSolver::getLoadVoltages() const
@@ -238,59 +305,57 @@ std::vector<complex_t> PowerFlowSolver::getLoadVoltages() const
     return U;
 }
 
-
 // Returns all voltages in the network
 std::vector<complex_t> PowerFlowSolver::getAllVoltages() const
 {
     std::vector<complex_t> result{};
 
-    for (Grid const &g : network->grids)
+    for (Grid const &grid : network->grids)
     {
-        for (GridNode const &n : g.nodes)
+        for (GridNode const &node : grid.nodes)
         {
-            result.push_back(n.v);
+            result.push_back(node.v);
         }
     }
     return result;
 }
-
 
 // Returns all currents in the network
 std::vector<complex_t> PowerFlowSolver::getCurrents() const
 {
     std::vector<complex_t> result{};
 
-    for (Grid const &g : network->grids)
+    for (Grid const &grid : network->grids)
     {
-        for (GridEdge const &e : g.edges)
+        for (GridEdge const &edge : grid.edges)
         {
-            GridNode p{g.nodes[e.parent]}, c{g.nodes[e.child]};
+            GridNode parent{grid.nodes[edge.parent]}, child{grid.nodes[edge.child]};
 
-            //Avoid division by zero if impedance zero substitute by small number
-            complex_t impedance = (e.z_c !=  0.0) ? e.z_c : static_cast<complex_t>(settings.gauss_seidel_precision);
-            complex_t current{(p.v - c.v) / (impedance * SQRT3)};
+            // Avoid division by zero if impedance zero substitute by small number
+            complex_t impedance = (edge.z_c != 0.0) ? edge.z_c : static_cast<complex_t>(settings.gauss_seidel_precision);
+            complex_t current{(parent.v - child.v) / (impedance * SQRT3)};
             result.push_back(current);
         }
     }
     return result;
 }
 
-
 // Returns all SLACK_IMPLICIT/SLACK powers in the network
 std::vector<complex_t> PowerFlowSolver::getSlackPowers() const
 {
     std::vector<complex_t> result{};
 
-    for (Grid const &g : network->grids)
+    for (Grid const &grid : network->grids)
     {
-        for (GridNode const &n : g.nodes)
+        for (GridNode const &node : grid.nodes)
         {
-            if (n.type == NodeType::SLACK_IMPLICIT || n.type == NodeType::SLACK)
+            if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
             {
-                result.push_back(n.s);
+                result.push_back(node.s);
             }
         }
     }
+
     return result;
 }
 
@@ -309,11 +374,153 @@ std::vector<complex_t> PowerFlowSolver::getImpedances() const
     return result;
 }
 
+std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDvDs() const
+{
+    if (!settings.compute_gradients)
+    {
+        throw std::runtime_error("Gradients are unavailable. Enable 'compute_gradients' in settings and ensure the network uses Backward Forward Sweep.");
+    }
+
+    size_t rootIdx = -1;
+    for (Grid const &grid : network->grids)
+    {
+        for (size_t nodeIdx = 0; nodeIdx < grid.nodes.size(); ++nodeIdx)
+        {
+            // Finds the index of root node.
+            if (grid.nodes[nodeIdx].type == NodeType::SLACK)
+            {
+                rootIdx = nodeIdx;
+                break;
+            }
+        }
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> result;
+
+    for (size_t gridIdx = 0; gridIdx < network->grids.size(); ++gridIdx)
+    {
+        Grid const &grid = network->grids[gridIdx];
+        for (size_t nodeIdx = 0; nodeIdx < grid.dVdS.size(); ++nodeIdx)
+        {
+            // Skip the root node of the grid, i.e. the SLACK node, since it has no dV/dS sensitivities (dVdS=[0,0,0]).
+            if (gridIdx == 0 && nodeIdx == rootIdx)
+            {
+                continue;
+            }
+
+            std::vector<std::array<double, 2>> dVNode_dSLeaves;
+
+            for (size_t leafIdx = 0; leafIdx < grid.dVdS[nodeIdx].size(); ++leafIdx)
+            {
+                double dVre_dSre = grid.dVdS[nodeIdx][leafIdx](0, 0);
+                double dVim_dSim = grid.dVdS[nodeIdx][leafIdx](1, 1);
+                dVNode_dSLeaves.push_back({dVre_dSre, dVim_dSim});
+            }
+
+            result.push_back(std::move(dVNode_dSLeaves));
+        }
+    }
+
+    return result;
+}
+
+std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDiDs() const
+{
+    if (!settings.compute_gradients)
+    {
+        throw std::runtime_error("Gradients are unavailable. Enable 'compute_gradients' in settings and ensure the network uses Backward Forward Sweep.");
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> result;
+
+    for (Grid const &grid : network->grids)
+    {
+        for (size_t edgeIdx = 0; edgeIdx < grid.dIdS.size(); ++edgeIdx)
+        {
+            std::vector<std::array<double, 2>> dIEdge_dSLeaves;
+
+            for (size_t leafIdx = 0; leafIdx < grid.dIdS[edgeIdx].size(); ++leafIdx)
+            {
+                double dIre_dSre = grid.dIdS[edgeIdx][leafIdx](0, 0);
+                double dIim_dSim = grid.dIdS[edgeIdx][leafIdx](1, 1);
+                dIEdge_dSLeaves.push_back({dIre_dSre, dIim_dSim});
+            }
+
+            result.push_back(std::move(dIEdge_dSLeaves));
+        }
+    }
+
+    return result;
+}
+
+std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDsDs() const
+{
+    if (!settings.compute_gradients)
+    {
+        throw std::runtime_error("Gradients are unavailable. Enable 'compute_gradients' in settings and ensure the network uses Backward Forward Sweep.");
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> result;
+
+    for (Grid const &grid : network->grids)
+    {
+        for (size_t nodeIdx = 0; nodeIdx < grid.dSdS.size(); ++nodeIdx)
+        {
+            // We only want to get dS_all_nodes_except_leaf/dS_all_leaves,
+            // so skip LOAD (leaf) nodes.
+            if (grid.nodes[nodeIdx].type == NodeType::LOAD)
+            {
+                continue;
+            }
+
+            std::vector<std::array<double, 2>> dSNode_dSLeaves;
+            for (size_t leafIdx = 0; leafIdx < grid.dSdS[nodeIdx].size(); ++leafIdx)
+            {
+                double dSre_dSre = grid.dSdS[nodeIdx][leafIdx](0, 0);
+                double dSim_dSim = grid.dSdS[nodeIdx][leafIdx](1, 1);
+                dSNode_dSLeaves.push_back({dSre_dSre, dSim_dSim});
+            }
+
+            result.push_back(std::move(dSNode_dSLeaves));
+        }
+    }
+
+    return result;
+}
+
+std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDslossDs() const
+{
+    if (!settings.compute_gradients)
+    {
+        throw std::runtime_error("Gradients are unavailable. Enable 'compute_gradients' in settings and ensure the network uses Backward Forward Sweep.");
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> result;
+
+    for (Grid const &grid : network->grids)
+    {
+        for (size_t edgeIdx = 0; edgeIdx < grid.dSlossdS.size(); ++edgeIdx)
+        {
+            std::vector<std::array<double, 2>> dSlossEdge_dSLeaves;
+
+            for (size_t leafIdx = 0; leafIdx < grid.dSlossdS[edgeIdx].size(); ++leafIdx)
+            {
+                double dSlossre_dSre = grid.dSlossdS[edgeIdx][leafIdx](0, 0);
+                double dSlossim_dSim = grid.dSlossdS[edgeIdx][leafIdx](1, 1);
+                dSlossEdge_dSLeaves.push_back({dSlossre_dSre, dSlossim_dSim});
+            }
+
+            result.push_back(std::move(dSlossEdge_dSLeaves));
+        }
+    }
+
+    return result;
+}
 
 // Resets powers to 0 and voltages to 1
 void PowerFlowSolver::reset()
 {
-    for (std::unique_ptr<GridSolver>& solver : gridSolvers)
+    for (std::unique_ptr<GridSolver> &solver : gridSolvers)
     {
         solver->reset();
     }

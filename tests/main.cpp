@@ -16,31 +16,13 @@
 std::string localPath = "";
 
 // CHECK_FALSE(file.fail());  checks that the file can be opened correctly (in most cases it is the wrong filepath)
-bool test_input_error_message(std::string errorMessage, std::string filePath)
+bool testInputErrorMessage(std::string errorMessage, std::string filePath)
 {
     std::ifstream file(filePath);
     CHECK_FALSE(file.fail());
     NetworkLoader loader(file);
     REQUIRE_THROWS_WITH(loader.loadNetwork(), Catch::Matchers::Contains(errorMessage)); // should fail and halt so true is not returned
     return true;
-}
-
-TEST_CASE("Networkloader input", "[!throws]")
-{
-    std::cout << "LOCALPATH: " << localPath << std::endl;
-    REQUIRE(test_input_error_message("Invalid S base", localPath + "examples/test_networks/invalid_base_S.txt"));
-    REQUIRE(test_input_error_message("Invalid V base", localPath + "examples/test_networks/invalid_base_V.txt"));
-    REQUIRE(test_input_error_message("Invalid command", localPath + "examples/test_networks/invalid_command.txt"));
-    REQUIRE(test_input_error_message("Invalid node index", localPath + "examples/test_networks/invalid_node_index.txt"));
-    REQUIRE(test_input_error_message("Empty grid", localPath + "examples/test_networks/empty_grid.txt"));
-    REQUIRE(test_input_error_message("Invalid edge parent index", localPath + "examples/test_networks/invalid_edge_parent_index.txt"));
-    REQUIRE(test_input_error_message("Invalid edge child index", localPath + "examples/test_networks/invalid_edge_child_index.txt"));
-    REQUIRE(test_input_error_message("Invalid edge impedance", localPath + "examples/test_networks/invalid_edge_impedance_index.txt"));
-    REQUIRE(test_input_error_message("Invalid grid index", localPath + "examples/test_networks/invalid_slack_grid_index.txt"));
-    REQUIRE(test_input_error_message("Invalid LOAD_IMPLICIT node index", localPath + "examples/test_networks/invalid_slack_node_index.txt"));
-    REQUIRE(test_input_error_message("Invalid grid index", localPath + "examples/test_networks/invalid_PQ_grid_index.txt"));
-    REQUIRE(test_input_error_message("Invalid SLACK_IMPLICIT node index", localPath + "examples/test_networks/invalid_PQ_node_index.txt"));
-    REQUIRE(test_input_error_message("Invalid node type", localPath + "examples/test_networks/invalid_node_type.txt"));
 }
 
 void validatePFSThrow(const std::string &filePath)
@@ -55,7 +37,25 @@ void validatePFSThrow(const std::string &filePath)
     PowerFlowSolver pfs(std::move(net), settings, &logger);
 }
 
-TEST_CASE("Network validation", "[!throws]")
+TEST_CASE("T-01: Verify invalid netork loader scenarios for network loader.", "[!throws]")
+{
+    std::cout << "LOCALPATH: " << localPath << std::endl;
+    REQUIRE(testInputErrorMessage("Invalid S base", localPath + "examples/test_networks/invalid_base_S.txt"));
+    REQUIRE(testInputErrorMessage("Invalid V base", localPath + "examples/test_networks/invalid_base_V.txt"));
+    REQUIRE(testInputErrorMessage("Invalid command", localPath + "examples/test_networks/invalid_command.txt"));
+    REQUIRE(testInputErrorMessage("Invalid node index", localPath + "examples/test_networks/invalid_node_index.txt"));
+    REQUIRE(testInputErrorMessage("Empty grid", localPath + "examples/test_networks/empty_grid.txt"));
+    REQUIRE(testInputErrorMessage("Invalid edge parent index", localPath + "examples/test_networks/invalid_edge_parent_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid edge child index", localPath + "examples/test_networks/invalid_edge_child_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid edge impedance", localPath + "examples/test_networks/invalid_edge_impedance_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid grid index", localPath + "examples/test_networks/invalid_slack_grid_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid LOAD_IMPLICIT node index", localPath + "examples/test_networks/invalid_slack_node_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid grid index", localPath + "examples/test_networks/invalid_PQ_grid_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid SLACK_IMPLICIT node index", localPath + "examples/test_networks/invalid_PQ_node_index.txt"));
+    REQUIRE(testInputErrorMessage("Invalid node type", localPath + "examples/test_networks/invalid_node_type.txt"));
+}
+
+TEST_CASE("T-02: Verify that network structure validation rules throw expected errors.", "[!throws]")
 {
     REQUIRE_THROWS_WITH(validatePFSThrow(localPath + "examples/test_networks/invalid_node_type_in_connection.txt"),
                         Catch::Matchers::Contains("Invalid node type in connection 0"));
@@ -86,7 +86,8 @@ TEST_CASE("Network validation", "[!throws]")
 
     // See how PowerFlow handles the situation of a network with one SLACK node
     // and a LOAD node that is not connected, i.e. a disjoint grid.
-    REQUIRE_THROWS_WITH([]() {
+    REQUIRE_THROWS_WITH([]()
+                        {
         std::unique_ptr<Network> net = std::make_unique<Network>();
         Grid grid;
         GridNode node1;
@@ -98,98 +99,95 @@ TEST_CASE("Network validation", "[!throws]")
         net->grids.push_back(grid);
         CppLogger logger(std::cout);
         SolverSettings settings{};
-        PowerFlowSolver pfs(std::move(net), settings, &logger); 
-    }(), Catch::Matchers::Contains("Grid 0 consists of multiple disjoint graphs"));
+        PowerFlowSolver pfs(std::move(net), settings, &logger); }(), Catch::Matchers::Contains("Grid 0 consists of multiple disjoint graphs"));
 }
 
-TEST_CASE("Compare output of Backward-Forward Sweep and GaussSeidel", "[validation]")
+TEST_CASE("T-03: Compare output of Backward-Forward Sweep and GaussSeidel solvers.", "[validation]")
 {
-    SECTION("test_network.txt")
+    // ----- Common Setup -----
+    CppLogger logger(std::cout);
+
+    double precision = 1e-10;
+    int maxIterations = 10000;
+    bool computeGradients = false;
+    // ------------------------
+
+    // ----- Backward-Forward Sweep (BFS) Setup -----
+    // Load our test file and make sure it exists.
+    std::ifstream bfsTestFile(localPath + "examples/test_networks/test_network.txt");
+    CHECK_FALSE(bfsTestFile.fail());
+
+    // Create a loader that loads in the network from the file.
+    NetworkLoader bfsLoader(bfsTestFile);
+    std::unique_ptr<Network> bfsNetwork = bfsLoader.loadNetwork();
+
+    // Add all our BFS solvers for each subnetwork.
+    std::vector<GridSolver *> bfsSolvers;
+    for (Grid &grid : bfsNetwork->grids)
     {
-        // ----- Common Setup -----
-        CppLogger logger(std::cout);
+        bfsSolvers.push_back(new BackwardForwardSweepSolver(&grid, &logger, maxIterations, precision, computeGradients, 0, {}));
+    }
 
-        double precision = 1e-10;
-        int maxIterations = 10000;
-        // ------------------------
+    // Load our power loads.
+    bfsNetwork->grids.at(1).nodes.at(2).s = complex_t(0.004, 0.002);
+    bfsNetwork->grids.at(2).nodes.at(1).s = complex_t(0.002, 0.001);
+    bfsNetwork->grids.at(2).nodes.at(2).s = complex_t(0.005, 0.004);
 
-        // ----- Backward-Forward Sweep (BFS) Setup -----
-        // Load our test file and make sure it exists.
-        std::ifstream bfsTestFile(localPath + "examples/test_networks/test_network.txt");
-        CHECK_FALSE(bfsTestFile.fail());
+    // Run all of our BFS solvers.
+    for (GridSolver *solver : bfsSolvers)
+    {
+        solver->solve();
+    }
+    // -----------------------------------------------
 
-        // Create a loader that loads in the network from the file.
-        NetworkLoader bfsLoader(bfsTestFile);
-        std::unique_ptr<Network> bfsNetwork = bfsLoader.loadNetwork();
+    // ----- Setup GaussSeidel (GS) -----
+    // Load our test file and make sure it exists.
+    std::ifstream gsTestFile(localPath + "examples/test_networks/test_network.txt");
+    CHECK_FALSE(gsTestFile.fail());
 
-        // Add all our BFS solvers for each subnetwork.
-        std::vector<GridSolver*> bfsSolvers;
-        for (Grid &grid : bfsNetwork->grids)
+    // Create a loader that loads in the network from the file.
+    NetworkLoader gsLoader(gsTestFile);
+    std::unique_ptr<Network> gsNetwork = gsLoader.loadNetwork();
+
+    // Add all our GS solvers for each subnetwork.
+    std::vector<GridSolver *> gsSolvers;
+    for (Grid &grid : gsNetwork->grids)
+    {
+        gsSolvers.push_back(new GaussSeidelSolver(&grid, &logger, maxIterations, precision));
+    }
+
+    // Load our power loads.
+    gsNetwork->grids.at(1).nodes.at(2).s = complex_t(0.004, 0.002);
+    gsNetwork->grids.at(2).nodes.at(1).s = complex_t(0.002, 0.001);
+    gsNetwork->grids.at(2).nodes.at(2).s = complex_t(0.005, 0.004);
+
+    // Run all of our GS solvers.
+    for (GridSolver *solver : gsSolvers)
+    {
+        solver->solve();
+    }
+    // -----------------------------------------------
+
+    // Compare BFS and GS networks solved against each other.
+    for (unsigned long i = 0; i < gsNetwork->grids.size(); i++)
+    {
+        for (unsigned long j = 0; j < gsNetwork->grids[i].nodes.size(); j++)
         {
-            bfsSolvers.push_back(new BackwardForwardSweepSolver(&grid, &logger, maxIterations, precision));
-        }
-
-        // Load our power loads.
-        bfsNetwork->grids.at(1).nodes.at(2).s = -complex_t(0.004, 0.002);
-        bfsNetwork->grids.at(2).nodes.at(1).s = -complex_t(0.002, 0.001);
-        bfsNetwork->grids.at(2).nodes.at(2).s = -complex_t(0.005, 0.004);
-
-        // Run all of our BFS solvers.
-        for (GridSolver *solver : bfsSolvers)
-        {
-            solver->solve();
-        }
-        // -----------------------------------------------
-
-        // ----- Setup GaussSeidel (GS) -----
-        // Load our test file and make sure it exists.
-        std::ifstream gsTestFile(localPath + "examples/test_networks/test_network.txt");
-        CHECK_FALSE(gsTestFile.fail());
-
-        // Create a loader that loads in the network from the file.
-        NetworkLoader gsLoader(gsTestFile);
-        std::unique_ptr<Network> gsNetwork = gsLoader.loadNetwork();
-
-        // Add all our GS solvers for each subnetwork.
-        std::vector<GridSolver*> gsSolvers;
-        for (Grid &grid : gsNetwork->grids)
-        {
-            gsSolvers.push_back(new GaussSeidelSolver(&grid, &logger, maxIterations, precision));
-        }
-
-        // Load our power loads.
-        gsNetwork->grids.at(1).nodes.at(2).s = -complex_t(0.004, 0.002);
-        gsNetwork->grids.at(2).nodes.at(1).s = -complex_t(0.002, 0.001);
-        gsNetwork->grids.at(2).nodes.at(2).s = -complex_t(0.005, 0.004);
-
-        // Run all of our GS solvers.
-        for (GridSolver *solver : gsSolvers)
-        {
-            solver->solve();
-        }
-        // -----------------------------------------------
-
-        // Compare BFS and GS networks solved against each other.
-        for (unsigned long i = 0; i < gsNetwork->grids.size(); i++)
-        {
-            for (unsigned long j = 0; j < gsNetwork->grids[i].nodes.size(); j++)
+            if (gsNetwork->grids[i].nodes[j].type == NodeType::MIDDLE)
             {
-                if (gsNetwork->grids[i].nodes[j].type == NodeType::MIDDLE)
-                {
-                    continue;
-                }
-
-                // Check that BFS and GS lay within the same precision of each other using Catch2 Matcher.
-                CHECK_THAT(gsNetwork->grids[i].nodes[j].v.real(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].v.real(), 1e-10));
-                CHECK_THAT(gsNetwork->grids[i].nodes[j].v.imag(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].v.imag(), 1e-10));
-                CHECK_THAT(gsNetwork->grids[i].nodes[j].s.real(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].s.real(), 1e-10));
-                CHECK_THAT(gsNetwork->grids[i].nodes[j].s.imag(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].s.imag(), 1e-10));
+                continue;
             }
+
+            // Check that BFS and GS lay within the same precision of each other using Catch2 Matcher.
+            CHECK_THAT(gsNetwork->grids[i].nodes[j].v.real(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].v.real(), 1e-10));
+            CHECK_THAT(gsNetwork->grids[i].nodes[j].v.imag(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].v.imag(), 1e-10));
+            CHECK_THAT(gsNetwork->grids[i].nodes[j].s.real(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].s.real(), 1e-10));
+            CHECK_THAT(gsNetwork->grids[i].nodes[j].s.imag(), Catch::Matchers::WithinAbs(bfsNetwork->grids[i].nodes[j].s.imag(), 1e-10));
         }
     }
 }
 
-TEST_CASE("Compare GaussSeidel and ZBus Jacobi", "[validation]")
+TEST_CASE("T-04: Compare output of GaussSeidel and ZBus Jacobi solvers on a network with cycles.", "[validation]")
 {
     // ----- Common Setup -----
     CppLogger logger(std::cout);
@@ -208,16 +206,16 @@ TEST_CASE("Compare GaussSeidel and ZBus Jacobi", "[validation]")
     std::unique_ptr<Network> gsNetwork = gsLoader.loadNetwork();
 
     // Add all our GS solvers for each subnetwork.
-    std::vector<GridSolver*> gsSolvers;
+    std::vector<GridSolver *> gsSolvers;
     for (Grid &grid : gsNetwork->grids)
     {
         gsSolvers.push_back(new GaussSeidelSolver(&grid, &logger, maxIterations, precision));
     }
 
     // Load our power loads.
-    gsNetwork->grids.at(0).nodes.at(7).s = -complex_t(0.004, 0.002);
-    gsNetwork->grids.at(0).nodes.at(5).s = -complex_t(0.002, 0.001);
-    gsNetwork->grids.at(0).nodes.at(6).s = -complex_t(0.005, 0.004);
+    gsNetwork->grids.at(0).nodes.at(7).s = complex_t(0.004, 0.002);
+    gsNetwork->grids.at(0).nodes.at(5).s = complex_t(0.002, 0.001);
+    gsNetwork->grids.at(0).nodes.at(6).s = complex_t(0.005, 0.004);
 
     // Run all of our GS solvers.
     for (GridSolver *solver : gsSolvers)
@@ -236,16 +234,16 @@ TEST_CASE("Compare GaussSeidel and ZBus Jacobi", "[validation]")
     std::unique_ptr<Network> zBusNetwork = zBusLoader.loadNetwork();
 
     // Add all our ZBus Jacobi solvers for each subnetwork.
-    std::vector<GridSolver*> zBusSolvers;
+    std::vector<GridSolver *> zBusSolvers;
     for (Grid &grid : zBusNetwork->grids)
     {
         zBusSolvers.push_back(new ZBusJacobiSolver(&grid, &logger, maxIterations, precision));
     }
 
     // Load our power loads.
-    zBusNetwork->grids.at(0).nodes.at(7).s = -complex_t(0.004, 0.002);
-    zBusNetwork->grids.at(0).nodes.at(5).s = -complex_t(0.002, 0.001);
-    zBusNetwork->grids.at(0).nodes.at(6).s = -complex_t(0.005, 0.004);
+    zBusNetwork->grids.at(0).nodes.at(7).s = complex_t(0.004, 0.002);
+    zBusNetwork->grids.at(0).nodes.at(5).s = complex_t(0.002, 0.001);
+    zBusNetwork->grids.at(0).nodes.at(6).s = complex_t(0.005, 0.004);
 
     // Run all of our ZBus Jacobi solvers.
     for (GridSolver *solver : zBusSolvers)
@@ -264,7 +262,7 @@ TEST_CASE("Compare GaussSeidel and ZBus Jacobi", "[validation]")
     CHECK_THAT(gsNetwork->grids[0].nodes[6].v.imag(), Catch::Matchers::WithinAbs(zBusNetwork->grids[0].nodes[6].v.imag(), 1e-10));
 }
 
-TEST_CASE("Compare treestructure", "[validation]")
+TEST_CASE("T-05: Verify that splitting a single grid into multiple subgrids does not change power flow results.", "[validation]")
 {
     // ----- Common Setup -----
     SolverSettings settings{};
@@ -345,59 +343,56 @@ TEST_CASE("Compare treestructure", "[validation]")
     CHECK_THAT(singleGridNetwork->grids[0].nodes[7].s.imag(), Catch::Matchers::WithinAbs(multiGridNetwork->grids[1].nodes[2].s.imag(), 1e-10));
 }
 
-TEST_CASE("Choose solver", "[validation]")
+TEST_CASE("T-06: Verify that GridAnalyzer correctly determines the appropriate solver type based on network characteristics.", "[validation]")
 {
-    SECTION("GridAnalyzer")
+    // Load our test tree file and make sure it exists.
+    std::ifstream treeFile(localPath + "examples/test_networks/test_network.txt");
+    CHECK_FALSE(treeFile.fail());
+
+    // Create a loader that loads in the tree network from the file.
+    NetworkLoader treeLoader(treeFile);
+    std::unique_ptr<Network> treeNetwork = treeLoader.loadNetwork();
+
+    // Make sure that no subgrid has any cycle, i.e. all solvers shall have been
+    // determined to be solveable by a Backward-Forward Sweep solver.
+    GridAnalyzer analyzer;
+    for (unsigned long gridIdx = 0; gridIdx < treeNetwork->grids.size(); gridIdx++)
     {
-        // Load our test tree file and make sure it exists.
-        std::ifstream treeFile(localPath + "examples/test_networks/test_network.txt");
-        CHECK_FALSE(treeFile.fail());
-
-        // Create a loader that loads in the tree network from the file.
-        NetworkLoader treeLoader(treeFile);
-        std::unique_ptr<Network> treeNetwork = treeLoader.loadNetwork();
-
-        // Make sure that no subgrid has any cycle, i.e. all solvers shall have been
-        // determined to be solveable by a Backward-Forward Sweep solver.
-        GridAnalyzer analyzer;
-        for (unsigned long gridIdx = 0; gridIdx < treeNetwork->grids.size(); gridIdx++)
-        {
-            REQUIRE(analyzer.determineSolver(treeNetwork->grids[gridIdx]) == BACKWARDFOWARDSWEEP);
-        }
-
-        // Load our test cycle file and make sure it exists.
-        std::ifstream cycleFile(localPath + "examples/test_networks/test_network_cycle.txt");
-        CHECK_FALSE(cycleFile.fail());
-
-        // Create a loader that loads in the cycle network from the file.
-        NetworkLoader cycleLoader(cycleFile);
-        std::unique_ptr<Network> cycleNetwork = cycleLoader.loadNetwork();
-
-        // Make sure we have at least one cycle in our subgrids, i.e. at least one
-        // of our solvers shall have been determined to be either GaussSeidel or ZBusJacobi solver.
-        bool containsCycle = false;
-        for (unsigned long gridIdx = 0; gridIdx < cycleNetwork->grids.size(); gridIdx++)
-        {
-            if (analyzer.determineSolver(cycleNetwork->grids[gridIdx]) != BACKWARDFOWARDSWEEP)
-            {
-                containsCycle = true;
-            }
-        }
-        REQUIRE(containsCycle);
-
-        // Load our multiple slack nodes file and make sure it exists.
-        std::ifstream slackFile(localPath + "examples/test_networks/multiple_slack_nodes.txt");
-        CHECK_FALSE(slackFile.fail());
-
-        // Create a loader that loads in the slack network from the file.
-        NetworkLoader slackLoader(slackFile);
-        std::unique_ptr<Network> slackNetwork = slackLoader.loadNetwork();
-
-        // Make sure GaussSeidel is determined as solver when we have multiple slack nodes,
-        // since Backward-Forward Sweep (can only handle one slack node) and ZBusJacobi (in
-        // its current implementation cannot handle this -- the math is much more complex).
-        SolverType solverTypeSlack = analyzer.determineSolver(slackNetwork->grids[2]);
-        REQUIRE(solverTypeSlack != ZBUSJACOBI);
-        REQUIRE(solverTypeSlack != BACKWARDFOWARDSWEEP);
+        REQUIRE(analyzer.determineSolver(treeNetwork->grids[gridIdx]) == BACKWARDFOWARDSWEEP);
     }
+
+    // Load our test cycle file and make sure it exists.
+    std::ifstream cycleFile(localPath + "examples/test_networks/test_network_cycle.txt");
+    CHECK_FALSE(cycleFile.fail());
+
+    // Create a loader that loads in the cycle network from the file.
+    NetworkLoader cycleLoader(cycleFile);
+    std::unique_ptr<Network> cycleNetwork = cycleLoader.loadNetwork();
+
+    // Make sure we have at least one cycle in our subgrids, i.e. at least one
+    // of our solvers shall have been determined to be either GaussSeidel or ZBusJacobi solver.
+    bool containsCycle = false;
+    for (unsigned long gridIdx = 0; gridIdx < cycleNetwork->grids.size(); gridIdx++)
+    {
+        if (analyzer.determineSolver(cycleNetwork->grids[gridIdx]) != BACKWARDFOWARDSWEEP)
+        {
+            containsCycle = true;
+        }
+    }
+    REQUIRE(containsCycle);
+
+    // Load our multiple slack nodes file and make sure it exists.
+    std::ifstream slackFile(localPath + "examples/test_networks/multiple_slack_nodes.txt");
+    CHECK_FALSE(slackFile.fail());
+
+    // Create a loader that loads in the slack network from the file.
+    NetworkLoader slackLoader(slackFile);
+    std::unique_ptr<Network> slackNetwork = slackLoader.loadNetwork();
+
+    // Make sure GaussSeidel is determined as solver when we have multiple slack nodes,
+    // since Backward-Forward Sweep (can only handle one slack node) and ZBusJacobi (in
+    // its current implementation cannot handle this -- the math is much more complex).
+    SolverType solverTypeSlack = analyzer.determineSolver(slackNetwork->grids[2]);
+    REQUIRE(solverTypeSlack != ZBUSJACOBI);
+    REQUIRE(solverTypeSlack != BACKWARDFOWARDSWEEP);
 }

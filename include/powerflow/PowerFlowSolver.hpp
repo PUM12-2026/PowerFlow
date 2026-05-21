@@ -21,6 +21,7 @@ struct SolverSettings
     int max_iterations_zbusjacobi{10000};
     double zbusjacobi_precision{1e-10};
     int max_iterations_total{10000};
+    bool compute_gradients{false};
 };
 
 // Class responsible for solving an entire Network.
@@ -28,7 +29,7 @@ class PowerFlowSolver
 {
 public:
     // network - The network to solve.
-	// logger - Logger object.    
+    // logger - Logger object.
     PowerFlowSolver(std::shared_ptr<Network> network, SolverSettings settings, Logger *const logger);
 
     // Solve network.
@@ -78,26 +79,39 @@ public:
     // Returns all cable impedances in the network.
     std::vector<complex_t> getImpedances() const;
 
+    // Returns the gradients of all nodes in the network except SLACK (root) node, with respect to all of the LOAD powers.
+    std::vector<std::vector<std::array<double, 2>>> getDvDs() const;
+
+    // Returns the gradients of all cables in the network, with respect to all of the LOAD powers.
+    std::vector<std::vector<std::array<double, 2>>> getDiDs() const;
+
+    // Returns the gradients of all nodes in the network except the LOAD nodes, with respect to all of the LOAD powers.
+    std::vector<std::vector<std::array<double, 2>>> getDsDs() const;
+
+    // Returns the gradients of all cables in the network, with respect to all of the LOAD powers.
+    std::vector<std::vector<std::array<double, 2>>> getDslossDs() const;
+
     // Resets powers to 0 and voltages to 1.
     void reset();
+
 private:
-	std::vector<std::unique_ptr<GridSolver>> gridSolvers;
-	std::shared_ptr<Network> network;
-	SolverSettings settings;
-	bool firstRun { true };
-    Logger* const logger { nullptr };
+    std::vector<std::unique_ptr<GridSolver>> gridSolvers;
+    std::shared_ptr<Network> network;
+    SolverSettings settings;
+    bool firstRun{true};
+    Logger *const logger{nullptr};
 
-	// Creates appropriate GridSolvers for each grid in the network.
-	void createGridSolvers();
+    // Creates appropriate GridSolvers for each grid in the network.
+    void createGridSolvers();
 
-	// Updates LOAD node powers.
-	void updateLoads(const std::vector<complex_t>& P);
+    // Updates LOAD node powers.
+    void updateLoads(const std::vector<complex_t> &P);
 
-	// Updates SLACK node voltages.
-	void updateExternalVoltages(const std::vector<complex_t>& V);
+    // Updates SLACK node voltages.
+    void updateExternalVoltages(const std::vector<complex_t> &V);
 
-	// Runs the GridSolvers and combines the result.
-	void runGridSolvers();
+    // Runs the GridSolvers and combines the result.
+    void runGridSolvers();
 };
 
 #endif

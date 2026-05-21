@@ -95,7 +95,7 @@ int ZBusJacobiSolver::solve()
 		}
 		else
 		{
-			S(nodeIdx) = -grid->nodes[nodeIdx].s;
+			S(nodeIdx) = grid->nodes[nodeIdx].s;
 		}
 		V(nodeIdx) = grid->nodes[nodeIdx].v;
 	}

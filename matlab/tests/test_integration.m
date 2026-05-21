@@ -7,6 +7,7 @@ function testIntegration()
 
     settings = struct();
     settings.max_iterations_total = 1000;
+    settings.compute_gradients = true;
 
     network_path = string(fullfile(pwd, 'examples', 'test_networks', 'test_network.txt'));
     if exist(network_path, 'file') ~= 2
@@ -24,9 +25,11 @@ function testIntegration()
     verifySolveState(power_flow);
     verifyCableParamsMajority(power_flow);
     verifyCableParamsRegression();
+    verifyGradientsTypes(power_flow);
 
     power_flow.reset();
     verifyResetState(power_flow);
+    verifyGradientsReset(power_flow);
 
     fprintf('MATLAB binding test passed!\n'); 
 end  
@@ -68,6 +71,30 @@ function verifySolveState(power_flow)
     checkListTypes(power_flow.getLoadVoltages(), 'load_voltages', 3);
     checkListTypes(power_flow.getSlackPowers(), 'slack_powers', 3);
     checkListTypes(power_flow.getCurrents(), 'currents', 7);
+end
+
+function verifyGradientsTypes(power_flow)
+    %{
+        Verify that the gradient getters return 3D arrays with [dPre, dQim] pairs.
+    %}
+
+    fprintf('Verifying gradient types...\n');
+
+    grads = {power_flow.getDiDs(), 'DiDs'; ...
+             power_flow.getDvDs(), 'DvDs'; ...
+             power_flow.getDsDs(), 'DsDs'; ...
+             power_flow.getDslossDs(), 'DslossDs'};
+
+    for k = 1:size(grads, 1)
+        grad_array = grads{k, 1};
+        name = grads{k, 2};
+
+        assert(isnumeric(grad_array), '%s should be a numeric array, got %s.', name, class(grad_array));
+        
+        dims = size(grad_array);
+        assert(length(dims) == 3, '%s should be a 3D array, got %d dimensions.', name, length(dims));
+        assert(dims(3) == 2, 'Third dimension of %s should be 2, got %d.', name, dims(3));
+    end
 end
 
 function verifyResetState(power_flow)
@@ -171,6 +198,26 @@ function verifyCableParamsRegression()
         err = abs(ref_impedances(i) - estimated_impedances(i)) / abs(ref_impedances(i));
         assert(err <= 1.1e-2, ...
             'Impedance %d is incorrect after parameter regression. Error %f', i, err);
+    end
+end
+
+function verifyGradientsReset(power_flow)
+    %{
+        Verify that the gradient getters return zero values after a reset.
+    %}
+
+    fprintf('Verifying reset gradient values...\n');
+
+    grads = {power_flow.getDiDs(), 'DiDs'; ...
+             power_flow.getDvDs(), 'DvDs'; ...
+             power_flow.getDsDs(), 'DsDs'; ...
+             power_flow.getDslossDs(), 'DslossDs'};
+
+    for k = 1:size(grads, 1)
+        grad_array = grads{k, 1};
+        name = grads{k, 2};
+
+        assert(all(grad_array(:) == 0), '%s did not reset to 0.', name);
     end
 end
 

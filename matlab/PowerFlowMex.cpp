@@ -107,6 +107,22 @@ public:
         {
             unloadNetwork(outputs, inputs);
         }
+        else if (command == "getDvDs")
+        {
+            getDvDs(outputs, inputs);
+        }
+        else if (command == "getDiDs")
+        {
+            getDiDs(outputs, inputs);
+        }
+        else if (command == "getDsDs")
+        {
+            getDsDs(outputs, inputs);
+        }
+        else if (command == "getDslossDs")
+        {
+            getDslossDs(outputs, inputs);
+        }
         else
         {
             throw std::invalid_argument("Invalid command");
@@ -202,6 +218,14 @@ private:
                     }
                     settings.bfs_precision = field[0];
                 }
+                else if (fieldName == "compute_gradients")
+                {
+                    if (field.getType() != matlab::data::ArrayType::LOGICAL || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid compute_gradients");
+                    }
+                    settings.compute_gradients = field[0];
+                }
                 else if (fieldName == "max_iterations_zbusjacobi")
                 {
                     if (field.getType() != matlab::data::ArrayType::DOUBLE || field.getNumberOfElements() != 1)
@@ -251,7 +275,6 @@ private:
         }
 
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
-        matlab::data::ArrayFactory factory;
         matlab::data::TypedArray<complex_t> matlabS = inputs[2];
         matlab::data::TypedArray<complex_t> matlabV = inputs[3];
 
@@ -346,6 +369,86 @@ private:
         std::vector<complex_t> Z = solver->getImpedances();
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
+    }
+
+    void getDvDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<std::vector<std::array<double, 2>>> dVdS = solver->getDvDs();
+        size_t rows = dVdS.size();
+        size_t cols = rows > 0 ? dVdS[0].size() : 0;
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<double> out = factory.createArray<double>({rows, cols, 2});
+        for (size_t i = 0; i < rows; ++i)
+        {
+            for (size_t j = 0; j < cols; ++j)
+            {
+                out[i][j][0] = dVdS[i][j][0]; // Real value
+                out[i][j][1] = dVdS[i][j][1]; // Imaginary value
+            }
+        }
+
+        outputs[0] = std::move(out);
+    }
+
+    void getDiDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<std::vector<std::array<double, 2>>> dIdS = solver->getDiDs();
+        size_t rows = dIdS.size();
+        size_t cols = rows > 0 ? dIdS[0].size() : 0;
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<double> out = factory.createArray<double>({rows, cols, 2});
+        for (size_t i = 0; i < rows; ++i)
+        {
+            for (size_t j = 0; j < cols; ++j)
+            {
+                out[i][j][0] = dIdS[i][j][0]; // Real value
+                out[i][j][1] = dIdS[i][j][1]; // Imaginary value
+            }
+        }
+
+        outputs[0] = std::move(out);
+    }
+
+    void getDsDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<std::vector<std::array<double, 2>>> dSdS = solver->getDsDs();
+        size_t rows = dSdS.size();
+        size_t cols = rows > 0 ? dSdS[0].size() : 0;
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<double> out = factory.createArray<double>({rows, cols, 2});
+        for (size_t i = 0; i < rows; ++i)
+        {
+            for (size_t j = 0; j < cols; ++j)
+            {
+                out[i][j][0] = dSdS[i][j][0]; // Real value
+                out[i][j][1] = dSdS[i][j][1]; // Imaginary value
+            }
+        }
+
+        outputs[0] = std::move(out);
+    }
+
+    void getDslossDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<std::vector<std::array<double, 2>>> dSlossdS = solver->getDslossDs();
+        size_t rows = dSlossdS.size();
+        size_t cols = rows > 0 ? dSlossdS[0].size() : 0;
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<double> out = factory.createArray<double>({rows, cols, 2});
+        for (size_t i = 0; i < rows; ++i)
+        {
+            for (size_t j = 0; j < cols; ++j)
+            {
+                out[i][j][0] = dSlossdS[i][j][0]; // Real value
+                out[i][j][1] = dSlossdS[i][j][1]; // Imaginary value
+            }
+        }
+
+        outputs[0] = std::move(out);
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

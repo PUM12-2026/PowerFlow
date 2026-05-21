@@ -85,7 +85,7 @@ std::tuple<complex_t, complex_t, complex_t, bool> ParameterValidator::validateRe
             continue;
         }
         
-        complex_t childI = -std::get<0>(childISU);
+        complex_t childI = std::get<0>(childISU);
         complex_t childS = std::get<1>(childISU);
         complex_t childU = std::get<2>(childISU);
 

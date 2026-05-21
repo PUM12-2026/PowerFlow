@@ -79,6 +79,26 @@ public:
         return solver->getImpedances();
     }
 
+    std::vector<std::vector<std::array<double, 2>>> getDvDs() const
+    {
+        return solver->getDvDs();
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> getDiDs() const
+    {
+        return solver->getDiDs();
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> getDsDs() const
+    {
+        return solver->getDsDs();
+    }
+
+    std::vector<std::vector<std::array<double, 2>>> getDslossDs() const
+    {
+        return solver->getDslossDs();
+    }
+
     void reset()
     {
         solver->reset();
@@ -98,6 +118,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def_readwrite("gauss_seidel_precision", &SolverSettings::gauss_seidel_precision)
         .def_readwrite("max_iterations_bfs", &SolverSettings::max_iterations_bfs)
         .def_readwrite("bfs_precision", &SolverSettings::bfs_precision)
+        .def_readwrite("compute_gradients", &SolverSettings::compute_gradients)
         .def_readwrite("max_iterations_zbusjacobi", &SolverSettings::max_iterations_zbusjacobi)
         .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision);
 
@@ -111,5 +132,9 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def("getCurrents", &PowerFlow::getCurrents, "Get currents")
         .def("getSlackPowers", &PowerFlow::getSlackPowers, "Get SLACK_IMPLICIT/SLACK powers")
         .def("getImpedances", &PowerFlow::getImpedances, "Get impedances")
+        .def("getDvDs", &PowerFlow::getDvDs, "Get voltage gradients of all nodes except root node w.r.t. power of all LOAD nodes")
+        .def("getDiDs", &PowerFlow::getDiDs, "Get current gradients of all edges w.r.t. power of all LOAD nodes")
+        .def("getDsDs", &PowerFlow::getDsDs, "Get power gradients of all nodes except LOAD nodes w.r.t. power all of LOAD nodes")
+        .def("getDslossDs", &PowerFlow::getDslossDs, "Get power loss gradients of all edges w.r.t. power all of LOAD nodes")
         .def("reset", &PowerFlow::reset, "Reset network powers and voltages");
 }
