@@ -2,6 +2,7 @@ stages:
   - Coverage
   - C++-tests
   - Binding-tests
+  - Misc-tests
 
 image: ubuntu:24.04
 
@@ -134,3 +135,15 @@ test-matlab-bindings:
     - export MATLABPATH=$MATLABPATH:$(pwd)/build/matlab:$(pwd)/build:$(pwd)/matlab/tests:$(pwd)/matlab
     - export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
     - matlab -batch "test_integration"
+
+test-misc-python:
+  stage: Misc-tests
+  needs: []
+  before_script:
+    - apt-get update -y
+    - apt-get install -y --no-install-recommends python3 python3-pip python3-venv
+  script:
+    - python3 -m venv .venv
+    - source .venv/bin/activate
+    - pip install -r requirements.txt
+    - python3 misc/tests/run_tests.py
