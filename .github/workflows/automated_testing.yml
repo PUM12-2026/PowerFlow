@@ -1,34 +1,161 @@
-name: AUTO
+name: Test and metrics pipeline
 
 on:
   push:
-    branches: [ Testing, main ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
+  test-cpp-coverage:
+    name: Coverage
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Set up CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Configure project
-        run: cmake -S . -B build -DGITHUB_VM=ON
-
-      - name: Build project
-        run: cmake --build build
-
-      - name: Run tests
-        run: ctest --test-dir build -C Debug
- 
-      - name: Show test log on failure
-        if: failure()
+      - name: Install Dependencies
         run: |
-          echo "===== LastTest.log ====="
-          cat build/Testing/Temporary/LastTest.log || echo "Log file not found"
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends cmake g++ build-essential lcov
+
+      - name: Run Coverage Tests
+        run: |
+          rm -rf build-coverage
+          cmake -S . -B build-coverage -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-coverage
+          ctest --test-dir build-coverage -V --output-on-failure | tee test_results.txt || export TESTS_FAILED=true
+
+      - name: Collect Test Progression
+        run: |
+          DATE=$(date +"%d %b")
+          
+          if grep -q "test cases:" test_results.txt; then
+              LINE=$(grep "test cases:" test_results.txt | tail -n 1)
+              EXECUTED=$(echo "$LINE" | awk -F'[:|]' '{print $2}' | tr -dc '0-9')
+              PASSED=$(echo "$LINE" | awk -F'[:|]' '{print $3}' | tr -dc '0-9')
+              FAILED=$(echo "$LINE" | awk -F'[:|]' '{print $4}' | tr -dc '0-9')
+          elif grep -q "All tests passed" test_results.txt; then
+              LINE=$(grep "All tests passed" test_results.txt | tail -n 1)
+              EXECUTED=$(echo "$LINE" | grep -oP '\d+(?= test cases)')
+              PASSED=$EXECUTED
+              FAILED=0
+          else
+              EXECUTED=0; PASSED=0; FAILED=0
+          fi
+          
+          EXECUTED=${EXECUTED:-0}
+          PASSED=${PASSED:-0}
+          FAILED=${FAILED:-0}
+          
+          echo "date,exec,pass,fail" > progress_data.csv
+          echo "$DATE,$EXECUTED,$PASSED,$FAILED" >> progress_data.csv
+          
+          echo "--- Test progression collected ---"
+          cat progress_data.csv
+
+      - name: Process Coverage Data
+        run: |
+          lcov --capture --directory . --output-file coverage.info --base-directory . --exclude '/usr/*' --ignore-errors gcov,graph
+          lcov --remove coverage.info '*/tests/*' '*/matlab/*' '*/python/*' '*/_deps/*' '*Eigen*' '*eigen*' --output-file coverage_filtered.info --ignore-errors unused
+          genhtml coverage_filtered.info --output-directory coverage-report
+          lcov --list coverage_filtered.info
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-and-progress
+          path: |
+            coverage-report/
+            progress_data.csv
+
+  test-windows-cpp:
+    name: C++ Tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure and Build
+        run: |
+          cmake -S . -B build-win -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-win --config Debug
+
+      - name: Run Tests
+        run: |
+          ctest --test-dir build-win -C Debug -V --output-on-failure
+
+  test-linux-cpp:
+    name: C++ Tests (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure and Build
+        run: |
+          cmake -S . -B build-linux
+          cmake --build build-linux
+
+      - name: Run Tests
+        run: |
+          ctest --test-dir build-linux -V --output-on-failure
+
+  test-macos-cpp:
+    name: C++ Tests (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure and Build
+        run: |
+          cmake -S . -B build-mac
+          cmake --build build-mac
+
+      - name: Run Tests
+        run: |
+          ctest --test-dir build-mac -V --output-on-failure
+
+  test-python-bindings:
+    name: Python Bindings Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends cmake g++ build-essential pybind11-dev
+
+      - name: Install Python Dependencies & Test
+        env:
+          PYTHONPATH: ${{ github.workspace }}/python
+        run: |
+          pip install -r requirements.txt
+          pip install -e . --no-build-isolation
+          python python/tests/test_ingreration.py
+
+  test-misc-python:
+    name: Misc Python Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies and Run
+        run: |
+          pip install -r requirements.txt
+          python3 misc/tests/run_tests.py
