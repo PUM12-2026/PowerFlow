@@ -83,10 +83,10 @@ int BackwardForwardSweepSolver::solve()
         {
             previousVoltages[i] = grid->nodes[i].v;
         }
-        
+
         sweep(rootIdx, -1);
     }
-    while (++iter < maxIterations && !hasConverged());
+    while (++iter < maxIterations);// && !hasConverged());
 
     return iter;
 }
