@@ -30,7 +30,7 @@ BackwardForwardSweepSolver::BackwardForwardSweepSolver(
 
     I.resize(grid->edges.size(), 0.0);
 
-    previousVoltages.resize(grid->nodes.size(), {0, 0});
+    previousVoltages.resize(grid->nodes.size(), {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()});
 }
 
 int BackwardForwardSweepSolver::solve()

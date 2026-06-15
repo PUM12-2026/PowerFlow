@@ -231,6 +231,11 @@ void PowerFlowSolver::runGridSolvers()
     {
         maxGridIteration = 0;
 
+        for (std::unique_ptr<GridSolver> &solver : gridSolvers)
+        {
+            solver.reset();
+        }
+
         // Solve each grid independently
         for (std::unique_ptr<GridSolver> &solver : gridSolvers)
         {
