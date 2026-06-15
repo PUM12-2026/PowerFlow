@@ -29,6 +29,8 @@ BackwardForwardSweepSolver::BackwardForwardSweepSolver(
     }
 
     I.resize(grid->edges.size(), 0.0);
+
+    previousVoltages.resize(grid->nodes.size(), {0, 0});
 }
 
 int BackwardForwardSweepSolver::solve()
@@ -41,7 +43,6 @@ int BackwardForwardSweepSolver::solve()
     firstRun = false;
 
     int iter = 0;
-    bool converged = false;
 
     if (grid->dIdS.empty() && computeGradients)
     {
@@ -75,11 +76,17 @@ int BackwardForwardSweepSolver::solve()
         }
     }
 
-    // Updates the complex power injection.
-    while (iter++ < maxIterations)
+    // Update previous voltage vector and run forward-backward sweeps until convergence or max iterations
+    do
     {
+        for (size_t i = 0; i < grid->nodes.size(); i++)
+        {
+            previousVoltages[i] = grid->nodes[i].v;
+        }
+        
         sweep(rootIdx, -1);
     }
+    while (++iter < maxIterations && !hasConverged());
 
     return iter;
 }
@@ -202,52 +209,11 @@ void BackwardForwardSweepSolver::reset()
     firstRun = true;
 }
 
-// TODO: For next developers see how to fix this one, as this currently doesn't work
-//       or actually checks for convergence.
 bool BackwardForwardSweepSolver::hasConverged()
 {
-    for (size_t nodeIdx = 0; nodeIdx < grid->nodes.size(); ++nodeIdx)
+    for (size_t i = 0; i < grid->nodes.size(); i++)
     {
-        GridNode &node = grid->nodes[nodeIdx];
-
-        if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
-            continue;
-
-        // Complex current going through the node.
-        complex_t yv = 0.0;
-
-        // Sum of neighbour admittances.
-        complex_t ySum = 0.0;
-
-        for (size_t edgeIdx : node.edges)
-        {
-            GridEdge &edge = grid->edges[edgeIdx];
-            node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
-            GridNode &neighbor = grid->nodes[neighborIdx];
-
-            complex_t y = 1.0 / edge.z_c;
-            yv -= neighbor.v * y;
-            ySum += y;
-        }
-        // Update current
-        yv += node.v * ySum;
-
-        bool isLeaf = node.edges.size() == 1;
-
-        if (isLeaf)
-        {
-            if (std::abs(node.v * std::conj(yv) + node.s) > precision)
-            {
-                return false;
-            }
-        }
-        else
-        {
-            if (std::abs(node.v * std::conj(yv) - 0.0) > precision)
-            {
-                return false;
-            }
-        }
+        if (std::abs(grid->nodes[i].v - previousVoltages[i]) > precision) return false;
     }
     return true;
 }

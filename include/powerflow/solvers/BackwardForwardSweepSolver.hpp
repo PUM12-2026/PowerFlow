@@ -51,6 +51,9 @@ private:
     // Current vector.
     std::vector<complex_t> I;
 
+    // Voltages of previous iteration. Updated before each sweep
+    std::vector<complex_t> previousVoltages;
+
     // Used to indicate that slack power has not been computed.
     bool firstRun = true;
 
@@ -68,7 +71,7 @@ private:
     );
 
     /**
-     * @brief Checks if the solution has converged by comparing the current power flow with the previous iteration's power flow.
+     * @brief Checks if the solution has converged by comparing the current iteration's voltages with the previous iteration's voltages.
      *
      * @return bool: True if the solution has converged, false otherwise.
      */
