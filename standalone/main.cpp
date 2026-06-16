@@ -56,6 +56,12 @@ int main(int argc, char* argv[])
 
     // Run the solver by calling PowerFlowSolver::solve.
     pfs.solve(S, V);
+    
+    pfs.solve({
+        {0.06, 0.004},
+        {0.02, 0.001},
+        {0.05, 0.002}
+    }, V);
 
     // Get the resulting voltages at the LOAD nodes.
     std::vector<complex_t> loadVoltages = pfs.getLoadVoltages();
@@ -65,6 +71,8 @@ int main(int argc, char* argv[])
     {
         std::cout << "(" << v.real() << ", " << v.imag() << ")" << std::endl;
     }
+    
+    return 0;
     
     ////////////////////////////////////////
     // Cable parameter estimation example //
