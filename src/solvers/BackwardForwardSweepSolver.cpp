@@ -29,8 +29,6 @@ BackwardForwardSweepSolver::BackwardForwardSweepSolver(
     }
 
     I.resize(grid->edges.size(), 0.0);
-
-    previousVoltages.resize(grid->nodes.size(), {0, 0});
 }
 
 int BackwardForwardSweepSolver::solve()
@@ -77,16 +75,14 @@ int BackwardForwardSweepSolver::solve()
     }
 
     // Update previous voltage vector and run forward-backward sweeps until convergence or max iterations
-    do
+    while (++iter < maxIterations && !hasConverged())
     {
-        for (size_t i = 0; i < grid->nodes.size(); i++)
-        {
-            previousVoltages[i] = grid->nodes[i].v;
-        }
-        
         sweep(rootIdx, -1);
     }
-    while (++iter < maxIterations && !hasConverged());
+
+    // Extra sweep otherwise gradients break
+    // TODO: figure out why
+    sweep(rootIdx, -1);
 
     return iter;
 }
@@ -195,6 +191,7 @@ void BackwardForwardSweepSolver::reset()
 {
     GridSolver::reset();
     std::fill(I.begin(), I.end(), 0);
+    _hasConverged = false;
 
     if (computeGradients)
     {
@@ -211,9 +208,48 @@ void BackwardForwardSweepSolver::reset()
 
 bool BackwardForwardSweepSolver::hasConverged()
 {
-    for (size_t i = 0; i < grid->nodes.size(); i++)
+    for (size_t nodeIdx = 0; nodeIdx < grid->nodes.size(); ++nodeIdx)
     {
-        if (std::abs(grid->nodes[i].v - previousVoltages[i]) > precision) return false;
+        GridNode &node = grid->nodes[nodeIdx];
+
+        if (node.type == NodeType::SLACK_IMPLICIT || node.type == NodeType::SLACK)
+            continue;
+
+        complex_t yv = 0.0;
+
+        complex_t ySum = 0.0;
+
+        for (size_t edgeIdx : node.edges)
+        {
+            GridEdge &edge = grid->edges[edgeIdx];
+            node_idx_t neighborIdx = edge.parent == nodeIdx ? edge.child : edge.parent;
+            GridNode &neighbor = grid->nodes[neighborIdx];
+
+            complex_t y = 1.0 / edge.z_c;
+            yv -= neighbor.v * y;
+            ySum += y;
+        }
+        
+        yv += node.v * ySum;
+
+        bool isLeaf = node.edges.size() == 1;
+
+        complex_t s = node.v * std::conj(yv);
+
+        if (isLeaf)
+        {
+            if (std::abs(s + node.s) > precision)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (std::abs(s) > precision)
+            {
+                return false;
+            }
+        }
     }
     return true;
 }
