@@ -22,6 +22,8 @@ struct SolverSettings
     double zbusjacobi_precision{1e-10};
     int max_iterations_total{10000};
     bool compute_gradients{false};
+    int max_iterations_ols{20};
+    double ols_precision{1e-3};
 };
 
 // Class responsible for solving an entire Network.
@@ -58,11 +60,9 @@ public:
      * 
      * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
      * @param slackVoltages Time-series voltages at SLACK node
-     * @param convergenceThreshold Minimum change in impedances between iterations before convergence is accepted
-     * @param maxIterations Max amount of iterations
      */
-    void solveParamsReg(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
-        std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations);
+    void solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages);
     
 	// Returns all LOAD voltages in the network.
 	std::vector<complex_t> getLoadVoltages() const;

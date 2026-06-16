@@ -10,17 +10,21 @@ Powerflow supports estimation of cable parameters using measurement data and net
 
 PowerFlow has two methods for performing cable parameter estimation. Both require measurements at the slack node and at all load nodes.
 
-Regression Method
------------------
+OLS Regression Method
+---------------------
 
-This method requires multiple time samples. The larger the network the more are required, but generally the more samples are passed in the better. First a ``PowerFlowSolver`` object must be created, then the ``solveParamsReg`` method must be called, passing in slack voltages, load voltages, and load power consumptions, as well as a convergence threshold and a max number of iterations, as the method is iterative.
+This method requires multiple time samples. The larger the network the more are required, but generally the more samples are passed in the better. First a ``PowerFlowSolver`` object must be created. Precision and max number of iterations can be passed into the PowerFlowSolver using the ``settings`` struct. Then the ``solveParamsOLS`` method must be called, passing in slack voltages, load voltages, and load power consumptions.
 
 Matlab example:
 
 .. code-block:: matlab
 
-   % A PowerFlow object pf must be created
-   % (...)
+   % We create a settings object and set desired precision and max number of iterations
+   settings = struct();
+   settings.max_iterations_ols = 20;
+   stttings.ols_precision = 1e-3;
+
+   pf = PowerFlowSolver("path/to/network.txt", settings);
 
    % List of load node indexes
    keys = [3, 5, 6];
@@ -41,16 +45,19 @@ Matlab example:
    % List of t slack voltages
    slack = [complex(1.15, 0), (...)];
 
-   % Call the solveParamsReg function passing in keys, voltages, power consumptions, slack voltages, 
-   % convergence threshold, and a max number of iterations
-   pf.solveParamsReg(keys, V, S, slack, 1e-3, 20);
+   % Call the solveParamsOLS function passing in keys, voltages, power consumptions, and slack voltages
+   pf.solveParamsOLS(keys, V, S, slack);
 
 Python example:
 
 .. code-block:: python
 
-   # A PowerFlowSolver object pfs must be created
-   # (...)
+   # We create a settings object and set desired precision and max number of iterations
+   settings = PowerFlowPython.SolverSettings()
+   settings.max_iterations_ols = 20
+   stttings.ols_precision = 1e-3
+
+   pfs = PowerFlowPython.PowerFlow("path/to/network.txt", settings)
 
    # Dictionary of loads-voltages. Each load has t samples. Only the first sample is shown here.
    V = {
@@ -68,16 +75,24 @@ Python example:
 
    slack = [[1.15, 0], (...)]
 
-   # Call solveParamsReg passing in voltages, power consumptions, slack voltages, 
+   # Call solveParamsOLS passing in voltages, power consumptions, slack voltages, 
    # convergence threshold, and a max number of iterations
-   pfs.solveParamsReg(V, S, slack, 1e-3, 20)
+   pfs.solveParamsOLS(V, S, slack, 1e-3, 20)
 
 C++ example:
 
 .. code-block:: c++
 
-   // A PowerFlowSolver object pfs must be created
-   // (...)
+   // We must first load in a network from file 
+   // (..)
+
+   // Create a settings struct and set desired precision and max number of iterations
+   SolverSettings settings{}; 
+   settings.max_iterations_ols = 20;
+   settings.ols_precision = 1e-3;
+
+   // Create solver using settings and aforementioned network
+   pfs = PowerFlowSolver pfs(std::move(net), settings, &logger);
 
    // Load voltages. t samples for each load. Only one sample is shown here. For a full example, see ``standalone.cpp``
    std::vector<std::vector<complex_t>> loadVoltages = {
@@ -111,9 +126,9 @@ C++ example:
 
    // Call solveParams passing in voltages, power consumptions, slack voltages, 
    // convergence threshold, and a max number of iterations
-   pfs.solveParamsReg(measuredValues, slack, 1e-3, 20);
+   pfs.solveParamsOLS(measuredValues, slack, 1e-3, 20);
 
-The ``solveParamsReg`` method will estimate cable parameters in the network and update them at each iteration, even if convergence isn't achieved.
+The ``solveParamsOLS`` method will estimate cable parameters in the network and update them at each iteration, even if convergence isn't achieved.
 
 Majority Vote Method
 --------------------

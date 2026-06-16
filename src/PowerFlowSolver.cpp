@@ -70,11 +70,11 @@ void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t
     }
 }
 
-void PowerFlowSolver::solveParamsReg(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
-    std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations)
+void PowerFlowSolver::solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> &slackVoltages)
 {
     ParameterValidator pv = ParameterValidator(&network->grids[0], logger, {}, 1e9);
-    pv.validateRegression(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+    pv.validateRegression(measuredValues, slackVoltages, settings.ols_precision, settings.max_iterations_ols);
 }
 
 // Creates appropriate GridSolvers for each grid in the network

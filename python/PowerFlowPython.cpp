@@ -42,16 +42,16 @@ public:
         solver->solveParams(V, precision);
     }
 
-    void solveParamsReg(std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredVoltages, 
+    void solveParamsOLS(std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredVoltages, 
         std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredPowerInjections,
-        std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations)
+        std::vector<complex_t> &slackVoltages)
     {
         std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
         for (auto &[key, U] : measuredVoltages)
         {
             measuredValues[key] = MeasuredValues{U, measuredPowerInjections.at(key)};
         }
-        solver->solveParamsReg(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+        solver->solveParamsOLS(measuredValues, slackVoltages);
     }
 
     std::vector<complex_t> getLoadVoltages() const
@@ -120,13 +120,15 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def_readwrite("bfs_precision", &SolverSettings::bfs_precision)
         .def_readwrite("compute_gradients", &SolverSettings::compute_gradients)
         .def_readwrite("max_iterations_zbusjacobi", &SolverSettings::max_iterations_zbusjacobi)
-        .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision);
+        .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision)
+        .def_readwrite("max_iterations_ols", &SolverSettings::max_iterations_ols)
+        .def_readwrite("ols_precision", &SolverSettings::ols_precision);
 
     pybind11::class_<PowerFlow>(m, "PowerFlow")
         .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg_v("settings", SolverSettings(), "SolverSettings()"))
         .def("solve", &PowerFlow::solve, pybind11::arg("P"), pybind11::arg("V"), "Solve the power flow problem")
         .def("solveParams", &PowerFlow::solveParams, pybind11::arg("V"), pybind11::arg("precision"), "Find and adjust invalid cable parameters. WARNING: Not recommended, use solveParamsReg instead.")
-        .def("solveParamsReg", &PowerFlow::solveParamsReg, pybind11::arg("measuredVoltages"), pybind11::arg("measuredPowerInjections"), pybind11::arg("slackVoltages"), pybind11::arg("convergenceThreshold"), pybind11::arg("maxIterations"), "Estimate cable parameters in grid using regression.")
+        .def("solveParamsOLS", &PowerFlow::solveParamsOLS, pybind11::arg("measuredVoltages"), pybind11::arg("measuredPowerInjections"), pybind11::arg("slackVoltages"), "Estimate cable parameters in grid using regression.")
         .def("getLoadVoltages", &PowerFlow::getLoadVoltages, "Get the LOAD node voltages")
         .def("getAllVoltages", &PowerFlow::getAllVoltages, "Get all node voltages")
         .def("getCurrents", &PowerFlow::getCurrents, "Get currents")

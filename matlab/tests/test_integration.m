@@ -178,6 +178,8 @@ function verifyCableParamsRegression()
     [keys, U, S_load, slack_V] = regression_data();
     
     settings = struct();
+    settings.max_iterations_ols = 20;
+    settings.ols_precision = 3e-4;
     ref_network_path = string(fullfile(pwd, 'examples', 'net_large_ref.txt'));
     fault_network_path = string(fullfile(pwd, 'examples', 'net_large_test.txt'));
     power_flow_ref = PowerFlow(ref_network_path, settings);
@@ -188,7 +190,7 @@ function verifyCableParamsRegression()
 
     ref_impedances = power_flow_ref.getImpedances();
     
-    power_flow_fault.solveParamsReg(keys, U, S_load, slack_V, 3e-4, 20);
+    power_flow_fault.solveParamsOLS(keys, U, S_load, slack_V);
     
     checkListTypes(power_flow_fault.getImpedances(), 'impedances');
     

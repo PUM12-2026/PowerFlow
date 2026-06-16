@@ -70,6 +70,8 @@ void checkNetworkImpedancesReg(const ParameterRegTestConfig &config)
     std::ostringstream logStream;
     CppLogger logger(logStream);
     SolverSettings settings{};
+    settings.ols_precision = config.threshold;
+    settings.max_iterations_ols = config.maxIterations;
     
     // We run parameter estimation on the distorted network
     PowerFlowSolver solver(distNetwork, settings, &logger);
@@ -80,7 +82,7 @@ void checkNetworkImpedancesReg(const ParameterRegTestConfig &config)
 
     auto slackVoltages = config.slackVoltages;
     auto measuredValues = config.measuredValues;
-    solver.solveParamsReg(measuredValues, slackVoltages, config.threshold, config.maxIterations);
+    solver.solveParamsOLS(measuredValues, slackVoltages);
 
     std::vector<complex_t> estimatedImpedances = solver.getImpedances();
 
@@ -127,6 +129,9 @@ void validateNetworkImpedancesRegError(const ParameterRegTestConfig &config)
     std::ostringstream logStream;
     CppLogger logger(logStream);
     SolverSettings settings{};
+    settings.ols_precision = config.threshold;
+    settings.max_iterations_ols = config.maxIterations;
+
     PowerFlowSolver solver(distNetwork, settings, &logger);
     
     // Capture cerr
@@ -135,7 +140,7 @@ void validateNetworkImpedancesRegError(const ParameterRegTestConfig &config)
 
     auto slackVoltages = config.slackVoltages;
     auto measuredValues = config.measuredValues;
-    solver.solveParamsReg(measuredValues, slackVoltages, config.threshold, config.maxIterations);
+    solver.solveParamsOLS(measuredValues, slackVoltages);
 
     // Restore cerr
     std::cerr.rdbuf(oldCerr);

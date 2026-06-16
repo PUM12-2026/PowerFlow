@@ -75,9 +75,9 @@ public:
         {
             solveParams(outputs, inputs);
         }
-        else if (command == "solveParamsReg")
+        else if (command == "solveParamsOLS")
         {
-            solveParamsReg(outputs, inputs);
+            solveParamsOLS(outputs, inputs);
         }
         else if (command == "getLoadVoltages")
         {
@@ -242,6 +242,22 @@ private:
                     }
                     settings.zbusjacobi_precision = field[0];
                 }
+                else if (fieldName == "max_iterations_ols")
+                {
+                    if (field.getType() != matlab::data::ArrayType::DOUBLE || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid max_iterations_ols");
+                    }
+                    settings.max_iterations_ols = field[0];
+                }
+                else if (fieldName == "ols_precision")
+                {
+                    if (field.getType() != matlab::data::ArrayType::DOUBLE || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid ols_precision");
+                    }
+                    settings.ols_precision = field[0];
+                }
                 else
                 {
                     throw std::invalid_argument("Invalid option " + fieldName + " in setting struct");
@@ -284,7 +300,7 @@ private:
         solver->solve(S, V);
     }
 
-    void solveParamsReg(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    void solveParamsOLS(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
@@ -292,8 +308,6 @@ private:
         matlab::data::TypedArray<complex_t> voltages = inputs[3];
         matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
         matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
-        double convergenceThreshold = inputs[6][0];
-        int maxIterations = static_cast<int>(inputs[7][0]);
 
         size_t samples = voltages.getDimensions()[1];
 
@@ -312,7 +326,7 @@ private:
         }
 
         std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
-        solver->solveParamsReg(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+        solver->solveParamsOLS(measuredValues, slackVoltages);
     }
 
     void solveParams(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

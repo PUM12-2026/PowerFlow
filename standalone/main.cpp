@@ -72,8 +72,6 @@ int main(int argc, char* argv[])
         std::cout << "(" << v.real() << ", " << v.imag() << ")" << std::endl;
     }
     
-    return 0;
-    
     ////////////////////////////////////////
     // Cable parameter estimation example //
     ////////////////////////////////////////
@@ -140,7 +138,7 @@ int main(int argc, char* argv[])
     std::vector<complex_t> refImpedances = pfs2.getImpedances();
     
     // Pass in time series data, convergence threshold, and max amount of iterations
-    pfs2.solveParamsReg(measuredValues, slackVoltages, 3e-4, 20);
+    pfs2.solveParamsOLS(measuredValues, slackVoltages);
 
     // Get estimated impedances for comparison
     std::vector<complex_t> newImpedances = pfs2.getImpedances();
