@@ -11,4 +11,5 @@ It is strongly recommended to read the "General concepts" section before continu
    network_files
    basic_usage
    gradients
+   reading_csv
    cable_parameters
