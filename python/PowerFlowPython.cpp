@@ -111,6 +111,11 @@ private:
 
 PYBIND11_MODULE(PowerFlowPython, m)
 {
+    m.doc() = "A library for pwer flow computations. It can: \n\
+    - Estimate state in radial and non-radial networks. \n\
+    - Compute gradients in radial networks analytically. \n\
+    - Estimate cable parameters in radial networks.";
+
     pybind11::class_<SolverSettings>(m, "SolverSettings")
         .def(pybind11::init<>())
         .def_readwrite("max_iterations_total", &SolverSettings::max_iterations_total)

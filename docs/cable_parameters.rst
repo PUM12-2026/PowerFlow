@@ -27,7 +27,7 @@ Matlab example:
    pf = PowerFlowSolver("path/to/network.txt", settings);
 
    % List of load node indexes
-   keys = [3, 5, 6];
+   keys = int32([3, 5, 6]);
 
    % List of voltages, t for each load node, where t is the number of samples. These must correspond to the keys above
    V = zeros(3, t);
