@@ -143,6 +143,7 @@ int main(int argc, char* argv[])
     // Get estimated impedances for comparison
     std::vector<complex_t> newImpedances = pfs2.getImpedances();
 
+    std::cout << "Cable parameter estimate error relative to reference:\n";
     // Print out differences relative to nominal values
     for (size_t i = 0; i < refImpedances.size(); i++)
     {
