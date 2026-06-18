@@ -46,7 +46,7 @@ Matlab example:
    slack = [complex(1.15, 0), (...)];
 
    % Call the solveParamsOLS function passing in keys, voltages, power consumptions, and slack voltages
-   pf.solveParamsOLS(keys, V, S, slack);
+   Z = pf.solveParamsOLS(keys, V, S, slack);
 
 Python example:
 
@@ -77,14 +77,14 @@ Python example:
 
    # Call solveParamsOLS passing in voltages, power consumptions, slack voltages, 
    # convergence threshold, and a max number of iterations
-   pfs.solveParamsOLS(V, S, slack, 1e-3, 20)
+   Z = pfs.solveParamsOLS(V, S, slack, 1e-3, 20)
 
 C++ example:
 
 .. code-block:: c++
 
    // We must first load in a network from file 
-   // (..)
+   // (...)
 
    // Create a settings struct and set desired precision and max number of iterations
    SolverSettings settings{}; 
@@ -126,9 +126,9 @@ C++ example:
 
    // Call solveParams passing in voltages, power consumptions, slack voltages, 
    // convergence threshold, and a max number of iterations
-   pfs.solveParamsOLS(measuredValues, slack, 1e-3, 20);
+   std::vector<complex_t> Z = pfs.solveParamsOLS(measuredValues, slack, 1e-3, 20);
 
-The ``solveParamsOLS`` method will estimate cable parameters in the network and update them at each iteration, even if convergence isn't achieved.
+The ``solveParamsOLS`` method will estimate cable parameters in the network and update them at each iteration, unless convergence isn't achieved.
 
 Majority Vote Method
 --------------------

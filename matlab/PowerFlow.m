@@ -89,7 +89,7 @@ classdef PowerFlow < handle
             PowerFlowMex("solveParams", this.networkHandle, keysV, valsV, precision);
         end
 
-        function solveParamsOLS(this, keys, voltages, powerInjections, slackVoltages)
+        function [Z] = solveParamsOLS(this, keys, voltages, powerInjections, slackVoltages)
             % SOLVEPARAMSOLS Estimates cable parameters in network using OLS regression.
             % Input arguments:
             % - keys (array) - Array of LOAD node indexes (1 x number of LOAD nodes).
@@ -97,10 +97,13 @@ classdef PowerFlow < handle
             % - powerInjections (table) - Table of LOAD powers (number of LOAD nodes x number of samples).
             % - slackVoltages (array) - Array of SLACK voltages (1 x number of samples).
             %
+            % Output arguments:
+            % - Z (array) - Array of estimated cable parameters (1 x number of branches)
+            %
             % See also:
             %   PowerFlow
 
-            PowerFlowMex("solveParamsOLS", this.networkHandle, keys, voltages, powerInjections, slackVoltages);
+            Z = PowerFlowMex("solveParamsOLS", this.networkHandle, keys, voltages, powerInjections, slackVoltages);
         end
 
         function [V] = getLoadVoltages(this)

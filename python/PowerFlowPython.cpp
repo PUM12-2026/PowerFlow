@@ -42,7 +42,7 @@ public:
         solver->solveParams(V, precision);
     }
 
-    void solveParamsOLS(std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredVoltages, 
+    std::vector<complex_t> solveParamsOLS(std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredVoltages, 
         std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredPowerInjections,
         std::vector<complex_t> &slackVoltages)
     {
@@ -51,7 +51,7 @@ public:
         {
             measuredValues[key] = MeasuredValues{U, measuredPowerInjections.at(key)};
         }
-        solver->solveParamsOLS(measuredValues, slackVoltages);
+        return solver->solveParamsOLS(measuredValues, slackVoltages);
     }
 
     std::vector<complex_t> getLoadVoltages() const

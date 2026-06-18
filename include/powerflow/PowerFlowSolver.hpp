@@ -61,7 +61,7 @@ public:
      * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
      * @param slackVoltages Time-series voltages at SLACK node
      */
-    void solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
     
 	// Returns all LOAD voltages in the network.

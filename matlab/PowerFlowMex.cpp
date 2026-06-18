@@ -326,7 +326,9 @@ private:
         }
 
         std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
-        solver->solveParamsOLS(measuredValues, slackVoltages);
+        std::vector<complex_t> Z = solver->solveParamsOLS(measuredValues, slackVoltages);
+
+        outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
     }
 
     void solveParams(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

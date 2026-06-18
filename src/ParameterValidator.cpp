@@ -403,31 +403,13 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
 }
 
 
-void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations)
 {
     this->measuredValues = measuredValues;
     
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
-    /*size_t loadCount = 0;
-    for (auto n : grid->nodes)
-    {
-        if (n.type == LOAD || n.type == LOAD_IMPLICIT)
-        {
-            loadCount++;
-        }
-    }
-
-    const size_t minTimeSteps = 
-
-    if (timeSteps <= 2)
-    {
-        std::cerr << "Regression requires at least 2 samples, got " << timeSteps << std::endl;
-        return;
-    }
-
-    if (timeSteps < )*/
 
     // Validate amount of samples (time steps)
     for (auto &[key, val] : measuredValues)
@@ -435,12 +417,12 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
         if (val.S.size() != timeSteps)
         {
             std::cerr << "Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.S.size() << std::endl;
-            return;
+            return {};
         }
         if (val.U.size() != timeSteps)
         {
             std::cerr << "Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
-            return;
+            return {};
         }
     }
 
@@ -452,7 +434,7 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
             if (std::abs(u) == 0)
             {
                 std::cerr << "Voltage at node " << key << " is zero. Voltages may not be zero." << std::endl;
-                return;
+                return {};
             }
         }
     }
@@ -470,10 +452,16 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
         }
     }
 
+    // Cache impedances in case we don't converge
+    std::vector<complex_t> oldImpedances(edgeCount);
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        oldImpedances[i] = grid->edges[i].z_c;
+    }
+
+    std::vector<complex_t> newImpedances(edgeCount);
     for (int i = 0; i < maxIterations; i++)
     {
-        //std::cout << "Iteration " << i + 1 << std::endl;
-
         // Backward sweep, compute branch currents
         std::vector<std::vector<complex_t>> branchCurrents(timeSteps, std::vector<complex_t>(edgeCount));
         for (size_t t = 0; t < timeSteps; t++)
@@ -482,7 +470,6 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
         }
 
         // Estimate impedances from branch currents using ordinary least squares (OLS) regression
-        std::vector<complex_t> newImpedances(edgeCount);
         EstimateParameters(branchCurrents, slackVoltages, newImpedances);
 
         // Check convergence
@@ -510,8 +497,7 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
         }
         if (converged)
         {
-            //std::cout << "Converged after " << i + 1 << " iterations.\n";
-            return;
+            return newImpedances;
         }
 
         // Forward sweep, adjust voltage angles at load nodes
@@ -522,4 +508,12 @@ void ParameterValidator::validateRegression(std::unordered_map<node_idx_t, Measu
     }
 
     std::cout << "Failed to converge (max iterations = " << maxIterations << ")\n";
+
+    // Restore parameters
+    for (size_t i = 0; i < edgeCount; i++)
+    {
+        grid->edges[i].z_c = oldImpedances[i];
+    }
+
+    return newImpedances;
 }
