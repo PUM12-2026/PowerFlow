@@ -383,14 +383,9 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
 
     if (grid->nodes[n].type == LOAD || grid->nodes[n].type == LOAD_IMPLICIT)
     {
-        double magnitude = std::abs(measuredValues[n].U[t]);
-
         // Equation 19 https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/stg2.12177
-
-        double cos = (estimatedVoltage.real() / magnitude);
-        // Clamp to prevent NaN
-        cos = std::max<double>(-1, std::min<double>(cos, 1));
-        double angle = std::acos(cos);
+        double magnitude = std::abs(measuredValues[n].U[t]);
+        double angle = std::atan2(estimatedVoltage.imag(), estimatedVoltage.real());
         measuredValues[n].U[t] = std::polar(magnitude, angle);
     }
 
@@ -486,9 +481,6 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
             {
                 converged = false;
             }
-
-            /*std::cout << edge.parent << " --- " << edge.child << " I = " << branchCurrents[0][j] 
-            << " Z = " << newZ << std::endl;*/
 
             if (std::abs(newZ) > epsilon)
             {
