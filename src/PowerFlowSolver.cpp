@@ -5,6 +5,7 @@
 #include "powerflow/SolverTypeEnum.hpp"
 #include "powerflow/GridAnalyzer.hpp"
 #include "powerflow/NetworkValidator.hpp"
+#include "powerflow/NetworkSave.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -374,6 +375,24 @@ std::vector<complex_t> PowerFlowSolver::getImpedances() const
     return result;
 }
 
+void PowerFlowSolver::setImpedances(std::vector<complex_t> &Z)
+{
+    size_t i = 0;
+    for (Grid &grid : network->grids)
+    {
+        for (GridEdge edge : grid.edges)
+        {
+            if (i >= Z.size())
+            {
+                throw std::runtime_error("Z has too few elements");
+            }
+
+            edge.z_c = Z[i];
+            i++;
+        }
+    }
+}
+
 std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDvDs() const
 {
     if (!settings.compute_gradients)
@@ -524,4 +543,9 @@ void PowerFlowSolver::reset()
     {
         solver->reset();
     }
+}
+
+void PowerFlowSolver::save(std::ofstream &file)
+{
+    saveNetwork(network, file);
 }

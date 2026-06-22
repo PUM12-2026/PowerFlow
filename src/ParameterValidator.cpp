@@ -197,6 +197,10 @@ std::tuple<complex_t, complex_t, complex_t, bool> ParameterValidator::validateRe
     return{{0, 0}, {0, 0}, {0, 0}, false};    
 }
 
+//////////////////////////////////////////////////////////////
+//                  OLS Parameter Estimation                //
+//////////////////////////////////////////////////////////////
+
 
 // Compute branch currents in network at time step t, recursively. 
 // Ignores losses of power in cables, as per original algorithm
@@ -276,6 +280,9 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
 {
     const size_t timeSteps = branchCurrents.size();
 
+    // Ridge regression parameter, 0 = OLS, non-zero = ridge
+    const double lambda = 0;
+
     for (edge_idx_t edge : grid->nodes[0].edges)
     {
         node_idx_t child = grid->edges[edge].child;
@@ -302,8 +309,15 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
                 b(t) = std::abs(slackVoltages[t]) - std::abs(u);
             }
 
+            Eigen::MatrixXd lambda_i = lambda * Eigen::MatrixXd::Identity(2, 2);
             Eigen::VectorXd Z = (A.transpose() * A).ldlt().solve(A.transpose() * b);
-            newImpedances[edge] = {Z(0), Z(1)};
+            
+            double r = Z(0), x = Z(1);
+            if (resistanceOnly)
+            {
+                x = grid->edges[edge].z_c.imag();
+            }
+            newImpedances[edge] = {r, x};
         }
 
         // Slack parent and middle child => do regression while including all downstream nodes,
@@ -357,10 +371,16 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
                 }
             }
 
-            Eigen::VectorXd Z = (A.transpose() * A).ldlt().solve(A.transpose() * b);
+            Eigen::MatrixXd lambda_i = lambda * Eigen::MatrixXd::Identity(2 * edges.size(), 2 * edges.size());
+            Eigen::VectorXd Z = (A.transpose() * A + lambda_i).ldlt().solve(A.transpose() * b);
             for (auto i = 0; i * 2 < Z.rows(); i++)
             {
-                newImpedances[edges[i]] = {Z(i * 2), Z(i * 2 + 1)};
+                double r = Z(i * 2), x = Z(i * 2 + 1);
+                if (resistanceOnly)
+                {
+                    x = grid->edges[edges[i]].z_c.imag();
+                }
+                newImpedances[edges[i]] = {r, x};
             }
         }
     }
@@ -379,13 +399,22 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
         return;
     }
 
-    complex_t estimatedVoltage = parentVoltage - grid->edges[parentEdge].z_c * branchCurrents[parentEdge];
+    complex_t V_i = parentVoltage;
+    complex_t Z = grid->edges[parentEdge].z_c;
+    if (resistanceOnly)
+    {
+        Z = {Z.real(), 0};
+    }
+
+    complex_t V_j = V_i - Z * branchCurrents[parentEdge];
 
     if (grid->nodes[n].type == LOAD || grid->nodes[n].type == LOAD_IMPLICIT)
     {
         // Equation 19 https://ietresearch.onlinelibrary.wiley.com/doi/10.1049/stg2.12177
         double magnitude = std::abs(measuredValues[n].U[t]);
-        double angle = std::atan2(estimatedVoltage.imag(), estimatedVoltage.real());
+        double ratio = (V_j / magnitude).real();    
+        double angle = std::acos(std::max(-1.0, std::min(1.0, ratio)));
+
         measuredValues[n].U[t] = std::polar(magnitude, angle);
     }
 
@@ -393,7 +422,7 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
     {
         node_idx_t child = grid->edges[edge].child;
         if (child == n) continue;
-        ForwardSweep(grid->edges[edge].child, t, branchCurrents, estimatedVoltage, edge);
+        ForwardSweep(grid->edges[edge].child, t, branchCurrents, V_j, edge);
     }
 }
 
@@ -405,6 +434,8 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
     
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
+
+    resistanceOnly = true;
 
     // Validate amount of samples (time steps)
     for (auto &[key, val] : measuredValues)
@@ -418,6 +449,18 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         {
             std::cerr << "Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
             return {};
+        }
+        
+        if (resistanceOnly)
+        {
+            for (complex_t s : val.S)
+            {
+                if (std::abs(s.imag()) > 1e-10) 
+                {
+                    resistanceOnly = false;
+                    break;
+                }
+            }
         }
     }
 
@@ -443,6 +486,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         for (auto& it : measuredValues)
         {
             // Assume phase angle of load voltages = phase angle of slack voltage
+            // eq. (15)
             it.second.U[t] = std::polar(std::abs(it.second.U[t]), angle);
         }
     }

@@ -104,6 +104,12 @@ public:
         solver->reset();
     }
 
+    void save(std::string filepath)
+    {
+        std::ofstream file(filepath);
+        solver->save(file);
+    }
+
 private:
     std::unique_ptr<PowerFlowSolver> solver;
     CppLogger cpp_logger{};
@@ -144,4 +150,5 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def("getDsDs", &PowerFlow::getDsDs, "Get power gradients of all nodes except LOAD nodes w.r.t. power all of LOAD nodes")
         .def("getDslossDs", &PowerFlow::getDslossDs, "Get power loss gradients of all edges w.r.t. power all of LOAD nodes")
         .def("reset", &PowerFlow::reset, "Reset network powers and voltages");
+        .def("save", &PowerFlow::save, "Saves the network to file");
 }

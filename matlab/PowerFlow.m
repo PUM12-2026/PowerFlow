@@ -62,6 +62,15 @@ classdef PowerFlow < handle
             end
         end
 
+        function save(this, filepath)
+            % SAVE Saves the network to file.
+            %
+            % See also:
+            %   PowerFlow
+
+            PowerFlowMex("save", this.networkHandle, filepath);
+        end
+
         function solve(this, S, V)
             % SOLVE Estimates state in network given power consumptions S and slack voltages V.
             %

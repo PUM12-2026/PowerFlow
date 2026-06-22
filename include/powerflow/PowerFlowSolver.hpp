@@ -79,6 +79,9 @@ public:
     // Returns all cable impedances in the network.
     std::vector<complex_t> getImpedances() const;
 
+    // Sets all cable impedances in the network;
+    void setImpedances(std::vector<complex_t> &Z);
+
     // Returns the gradients of all nodes in the network except SLACK (root) node, with respect to all of the LOAD powers.
     std::vector<std::vector<std::array<double, 2>>> getDvDs() const;
 
@@ -93,6 +96,9 @@ public:
 
     // Resets powers to 0 and voltages to 1.
     void reset();
+
+    // Saves network to file
+    void save(std::ofstream& file);
 
 private:
     std::vector<std::unique_ptr<GridSolver>> gridSolvers;

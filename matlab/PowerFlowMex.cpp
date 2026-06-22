@@ -67,6 +67,10 @@ public:
         {
             loadNetwork(outputs, inputs);
         }
+        else if (command == "save")
+        {
+            save(outputs, inputs);
+        }
         else if (command == "solve")
         {
             solve(outputs, inputs);
@@ -277,6 +281,20 @@ private:
         // Send the solver handle up to MATLAB.
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createScalar<std::uint64_t>(handle);
+    }
+
+    void save(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        if (inputs.size() < 3 || inputs[2].getType() != matlab::data::ArrayType::MATLAB_STRING)
+        {
+            throw std::invalid_argument("Missing file path");
+        }
+
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::string filePath = inputs[2][0];
+        std::ofstream file(filePath);
+
+        solver->save(file);
     }
 
     void solve(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

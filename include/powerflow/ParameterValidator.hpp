@@ -63,6 +63,8 @@ private:
     std::unordered_map<node_idx_t, complex_t> const measuredV;
     std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
 
+    bool resistanceOnly = false;
+
     /** Recursive function that traverses all child nodes of node with given ID. 
      * Returns a tuple of current I, power injection S, voltage U, and validity. 
      * If invalid parameters are detected, validity is false. */
