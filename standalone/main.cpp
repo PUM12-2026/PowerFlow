@@ -132,11 +132,12 @@ int main(int argc, char* argv[])
         std::normal_distribution<double> powerNoise(0, 1e-5);
         for (int i = 0; i < 40; i++)
         {
-            slackVoltages[i] += {voltageNoise(generator), 0};
+            // Linux doesn't like it when complex_t is omitted here
+            slackVoltages[i] += complex_t{voltageNoise(generator), 0};
             for (int j = 0; j < 3; j++)
             {
-                measuredLoadVoltages[j][i] += {voltageNoise(generator), voltageNoise(generator)};
-                measuredLoads[j][i] += {powerNoise(generator), 0};
+                measuredLoadVoltages[j][i] += complex_t{voltageNoise(generator), voltageNoise(generator)};
+                measuredLoads[j][i] += complex_t{powerNoise(generator), 0};
             }
         }
     }
