@@ -127,6 +127,10 @@ public:
         {
             getDslossDs(outputs, inputs);
         }
+        else if (command == "isRadial")
+        {
+            isRadial(outputs, inputs);
+        }
         else
         {
             throw std::invalid_argument("Invalid command");
@@ -483,6 +487,13 @@ private:
         }
 
         outputs[0] = std::move(out);
+    }
+
+    void isRadial(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        outputs[0] = factory.createScalar<bool>(solver->isRadial());
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

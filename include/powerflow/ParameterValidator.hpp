@@ -63,6 +63,11 @@ private:
     std::unordered_map<node_idx_t, complex_t> const measuredV;
     std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
 
+    /**
+     * If true, solveParamsOLS will only estimate resistances, 
+     * else both resistances and reactances will be estimated.
+     * True when all Q measurements are zero.
+     */
     bool resistanceOnly = false;
 
     /** Recursive function that traverses all child nodes of node with given ID. 

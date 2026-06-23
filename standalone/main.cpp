@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
     std::vector<std::vector<complex_t>> measuredLoadVoltages = {{}, {}, {}};
     
     // Load network. Nominal impdeances are not considered by this method    
-    std::ifstream file2("example_network.txt");
+    std::ifstream file2("net_ols_small.txt");
     if (!file2)
     {
         std::cerr << "Could not open network file 2" << std::endl;
@@ -106,10 +106,6 @@ int main(int argc, char* argv[])
     SolverSettings settings2;
     settings2.max_iterations_ols = 20;
     PowerFlowSolver pfs2 = PowerFlowSolver(std::move(net2), settings2, &logger);
-    
-    std::ofstream file3("net_saved.txt");
-    pfs2.save(file3);
-    return 0;
     
     for (int i = 0; i < 40; i++)
     {
@@ -126,14 +122,14 @@ int main(int argc, char* argv[])
         pfs2.reset();
     }
     
-    // Add normal-distributed error terms to all measurements
-    const bool addNoise = false;
-    std::default_random_engine generator;
-    generator.seed(6789);
-    std::normal_distribution<double> voltageNoise(0, 0.0001);
-    std::normal_distribution<double> powerNoise(0, 1e-5);
+    const bool addNoise = true;
     if (addNoise)
     {
+        // Add normal-distributed error terms to all measurements
+        std::default_random_engine generator;
+        generator.seed(6789);
+        std::normal_distribution<double> voltageNoise(0, 0.0001);
+        std::normal_distribution<double> powerNoise(0, 1e-5);
         for (int i = 0; i < 40; i++)
         {
             slackVoltages[i] += {voltageNoise(generator), 0};
@@ -169,4 +165,9 @@ int main(int argc, char* argv[])
     {
         std::cout << "Ref: " << refImpedances[i] << "\tEstimated: " << newImpedances[i] << std::endl;
     }
+    
+    pfs2.setImpedances(newImpedances);
+    
+    std::ofstream file3("net_saved.txt");
+    pfs2.save(file3);
 }

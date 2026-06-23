@@ -302,7 +302,7 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
                 double angle = std::arg(u);
 
                 complex_t j = std::conj(measuredValues[child].S[t] / u);
-                complex_t j_rot = j * std::exp(complex_t(0, -angle));
+                complex_t j_rot = j * std::polar((double)1, -angle);
 
                 A(t, 0) = j_rot.real();
                 A(t, 1) = -j_rot.imag();
@@ -310,7 +310,7 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
             }
 
             Eigen::MatrixXd lambda_i = lambda * Eigen::MatrixXd::Identity(2, 2);
-            Eigen::VectorXd Z = (A.transpose() * A).ldlt().solve(A.transpose() * b);
+            Eigen::VectorXd Z = (A.transpose() * A + lambda_i).ldlt().solve(A.transpose() * b);
             
             double r = Z(0), x = Z(1);
             if (resistanceOnly)
@@ -354,7 +354,7 @@ void ParameterValidator::EstimateParameters(std::vector<std::vector<complex_t>> 
                         if (pathSet.count(edges[k]))
                         {
                             complex_t j = branchCurrents[t][edges[k]];
-                            complex_t j_rot = j * std::exp(complex_t(0, -angle));
+                            complex_t j_rot = j * std::polar((double)1, -angle);
 
                             A(row, 2 * k) = j_rot.real();
                             A(row, 2 * k + 1) = -j_rot.imag();
@@ -435,7 +435,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
 
-    resistanceOnly = true;
+    resistanceOnly = false;
 
     // Validate amount of samples (time steps)
     for (auto &[key, val] : measuredValues)

@@ -39,7 +39,7 @@ struct GridNode
     complex_t v = 1;
     // Complex power injection
     complex_t s = 0;
-    std::vector<node_idx_t> edges{};
+    std::vector<edge_idx_t> edges{};
 };
 
 // Edge between two grids.

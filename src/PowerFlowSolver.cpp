@@ -380,7 +380,7 @@ void PowerFlowSolver::setImpedances(std::vector<complex_t> &Z)
     size_t i = 0;
     for (Grid &grid : network->grids)
     {
-        for (GridEdge edge : grid.edges)
+        for (GridEdge &edge : grid.edges)
         {
             if (i >= Z.size())
             {
@@ -548,4 +548,37 @@ void PowerFlowSolver::reset()
 void PowerFlowSolver::save(std::ofstream &file)
 {
     saveNetwork(network, file);
+}
+
+bool PowerFlowSolver::isRadial()
+{
+    GridAnalyzer analyzer;
+    for (Grid& grid : network->grids)
+    {
+        if (analyzer.determineSolver(grid) != BACKWARDFOWARDSWEEP)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void PowerFlowSolver::simplifyNetwork()
+{
+    if (!isRadial())
+    {
+        throw new std::runtime_error("Network has cycles. Can only simplify radial networks.");
+    }
+
+    for (size_t i = 0; i < network->grids.size(); i++)
+    {
+        Grid grid = network->grids[i];
+        simplify(grid, 0, 0);
+    }
+}
+
+void PowerFlowSolver::simplify(Grid &grid, node_idx_t n, int removedCount)
+{
+    
 }

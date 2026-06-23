@@ -100,6 +100,16 @@ public:
     // Saves network to file
     void save(std::ofstream& file);
 
+    /**
+     * Returns true if the network is radial, else false.
+     */
+    bool isRadial();
+
+    /**
+     * Simplifies the network by merging cables in series
+     */
+    void simplifyNetwork();
+
 private:
     std::vector<std::unique_ptr<GridSolver>> gridSolvers;
     std::shared_ptr<Network> network;
@@ -118,6 +128,8 @@ private:
 
     // Runs the GridSolvers and combines the result.
     void runGridSolvers();
+
+    void simplify(Grid &grid, node_idx_t n, int removedCount);
 };
 
 #endif

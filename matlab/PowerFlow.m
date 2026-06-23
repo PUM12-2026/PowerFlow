@@ -209,5 +209,14 @@ classdef PowerFlow < handle
 
             PowerFlowMex("reset", this.networkHandle);
         end
+
+        function [radial] = isRadial(this)
+            % ISRADIAL Checks whether the network is radial. Returns true if it is radial, else returns false.
+            %
+            % See also:
+            %   PowerFlow
+
+            radial = PowerFlowMex("isRadial", this.networkHandle);
+        end
     end
 end
