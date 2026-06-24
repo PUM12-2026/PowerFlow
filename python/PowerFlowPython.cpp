@@ -79,6 +79,11 @@ public:
         return solver->getImpedances();
     }
 
+    void setImpedances(std::vector<complex_t> Z)
+    {
+        solver->setImpedances(Z);
+    }
+
     std::vector<std::vector<std::array<double, 2>>> getDvDs() const
     {
         return solver->getDvDs();
@@ -115,6 +120,11 @@ public:
         return solver->isRadial();
     }
 
+    void simplifyNetwork()
+    {
+        solver->simplifyNetwork();
+    }
+
 private:
     std::unique_ptr<PowerFlowSolver> solver;
     CppLogger cpp_logger{};
@@ -143,13 +153,14 @@ PYBIND11_MODULE(PowerFlowPython, m)
     pybind11::class_<PowerFlow>(m, "PowerFlow")
         .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg_v("settings", SolverSettings(), "SolverSettings()"))
         .def("solve", &PowerFlow::solve, pybind11::arg("P"), pybind11::arg("V"), "Solve the power flow problem")
-        .def("solveParams", &PowerFlow::solveParams, pybind11::arg("V"), pybind11::arg("precision"), "Find and adjust invalid cable parameters. WARNING: Not recommended, use solveParamsReg instead.")
+        .def("solveParams", &PowerFlow::solveParams, pybind11::arg("V"), pybind11::arg("precision"), "Find and adjust invalid cable parameters. WARNING: Not recommended, use solveParamsOLS instead.")
         .def("solveParamsOLS", &PowerFlow::solveParamsOLS, pybind11::arg("measuredVoltages"), pybind11::arg("measuredPowerInjections"), pybind11::arg("slackVoltages"), "Estimate cable parameters in grid using regression.")
         .def("getLoadVoltages", &PowerFlow::getLoadVoltages, "Get the LOAD node voltages")
         .def("getAllVoltages", &PowerFlow::getAllVoltages, "Get all node voltages")
         .def("getCurrents", &PowerFlow::getCurrents, "Get currents")
         .def("getSlackPowers", &PowerFlow::getSlackPowers, "Get SLACK_IMPLICIT/SLACK powers")
         .def("getImpedances", &PowerFlow::getImpedances, "Get impedances")
+        .def("setImpedances", &PowerFlow::setImpedances, "Set impedances")
         .def("getDvDs", &PowerFlow::getDvDs, "Get voltage gradients of all nodes except root node w.r.t. power of all LOAD nodes")
         .def("getDiDs", &PowerFlow::getDiDs, "Get current gradients of all edges w.r.t. power of all LOAD nodes")
         .def("getDsDs", &PowerFlow::getDsDs, "Get power gradients of all nodes except LOAD nodes w.r.t. power all of LOAD nodes")
@@ -157,4 +168,5 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def("reset", &PowerFlow::reset, "Reset network powers and voltages")
         .def("save", &PowerFlow::save, "Saves the network to file")
         .def("isRadial", &PowerFlow::isRadial, "Checks whether the network is radial. Returns true if it is, else returns false")
+        .def("simplifyNetwork", &PowerFlow::simplifyNetwork, "Simplifies the network by removing pass-through nodes. Network must be radial.");
 }

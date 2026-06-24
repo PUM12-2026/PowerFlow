@@ -28,7 +28,10 @@ enum NodeType
     LOAD_IMPLICIT,
     MIDDLE,
     SLACK,
-    SLACK_IMPLICIT
+    SLACK_IMPLICIT,
+    
+    // Used for modification of grid
+    REMOVED
 };
 
 // Graph node struct.

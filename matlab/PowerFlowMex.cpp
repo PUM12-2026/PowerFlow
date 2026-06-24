@@ -103,6 +103,10 @@ public:
         {
             getImpedances(outputs, inputs);
         }
+        else if (command == "setImpedances")
+        {
+            setImpedances(outputs, inputs);
+        }
         else if (command == "reset")
         {
             resetNetwork(outputs, inputs);
@@ -130,6 +134,10 @@ public:
         else if (command == "isRadial")
         {
             isRadial(outputs, inputs);
+        }
+        else if (command == "simplifyNetwork")
+        {
+            simplifyNetwork(outputs, inputs);
         }
         else
         {
@@ -409,6 +417,20 @@ private:
         outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
     }
 
+    void setImpedances(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::TypedArray<complex_t> impedances = inputs[2];
+        std::vector<complex_t> Z(impedances.begin(), impedances.end());
+
+        if (Z.size() != solver->getImpedances().size())
+        {
+            throw std::invalid_argument("Wrong array size. Expected " + std::to_string(solver->getImpedances().size()) + " elements, got " + std::to_string(Z.size()));
+        }
+
+        solver->setImpedances(Z);
+    }
+
     void getDvDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
@@ -494,6 +516,12 @@ private:
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createScalar<bool>(solver->isRadial());
+    }
+
+    void simplifyNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        solver->simplifyNetwork();
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

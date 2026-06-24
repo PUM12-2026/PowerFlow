@@ -571,14 +571,124 @@ void PowerFlowSolver::simplifyNetwork()
         throw new std::runtime_error("Network has cycles. Can only simplify radial networks.");
     }
 
+    std::vector<std::vector<node_idx_t>> netNodeMap(network->grids.size());
+
     for (size_t i = 0; i < network->grids.size(); i++)
     {
-        Grid grid = network->grids[i];
-        simplify(grid, 0, 0);
+        Grid &grid = network->grids[i];
+        simplify(grid, 0);
+
+        // Rebuild grid
+        Grid newGrid;
+        newGrid.sBase = grid.sBase;
+        newGrid.vBase = grid.vBase;
+
+        // Remap nodes and edges
+        std::vector<node_idx_t> nodeMap(grid.nodes.size(), -1);
+        std::vector<edge_idx_t> edgeMap(grid.edges.size(), -1);
+
+        node_idx_t newNodeId = 0;
+        for (size_t j = 0; j < grid.nodes.size(); j++)
+        {
+            if (grid.nodes[j].type != REMOVED)
+            {
+                nodeMap[j] = newNodeId;
+                newNodeId++;
+            }
+        }
+
+        node_idx_t newEdgeId = 0;
+        for (size_t j = 0; j < grid.edges.size(); j++)
+        {
+            if (grid.edges[j].parent != -1)
+            {
+                edgeMap[j] = newEdgeId;
+                newEdgeId++;
+            }
+        }
+
+        // Rebuild nodes and edges
+        newGrid.nodes.resize(newNodeId);
+        newGrid.edges.resize(newEdgeId);
+
+        for (size_t j = 0; j < grid.nodes.size(); j++)
+        {
+            if (nodeMap[j] == -1) continue;
+            GridNode &node = grid.nodes[j];
+            GridNode &newNode = newGrid.nodes[nodeMap[j]];
+
+            newNode.type = node.type;
+            for (edge_idx_t edge : node.edges)
+            {
+                edge_idx_t newEdge = edgeMap[edge];
+                if (newEdge != -1)
+                {
+                    newNode.edges.push_back(newEdge);
+                }
+            }
+        }
+
+        for (size_t j = 0; j < grid.edges.size(); j++)
+        {
+            if (edgeMap[j] == -1) continue;
+            GridEdge &edge = grid.edges[j];
+            GridEdge &newEdge = newGrid.edges[edgeMap[j]];
+
+            newEdge.z_c = edge.z_c;
+            newEdge.parent = nodeMap[edge.parent];
+            newEdge.child = nodeMap[edge.child];
+        }
+
+        network->grids[i] = newGrid;
+        netNodeMap[i] = nodeMap;
+    }
+
+    // Remap connections
+    for (GridConnection &connection : network->connections)
+    {
+        connection.loadImplicitNode = netNodeMap[connection.loadImplicitGrid][connection.loadImplicitNode];
+        connection.slackImplicitNode = netNodeMap[connection.slackImplicitGrid][connection.slackImplicitNode];
     }
 }
 
-void PowerFlowSolver::simplify(Grid &grid, node_idx_t n, int removedCount)
+void PowerFlowSolver::simplify(Grid &grid, node_idx_t n)
 {
-    
+    GridNode &node = grid.nodes[n];
+
+    // Check if node is candidate for removal
+    if (node.type == MIDDLE && node.edges.size() == 2)
+    {
+        GridEdge *parentEdge, *childEdge;
+        if (grid.edges[node.edges[0]].child == n)
+        {
+            parentEdge = &grid.edges[node.edges[0]];
+            childEdge = &grid.edges[node.edges[1]];
+        }
+        else
+        {
+            parentEdge = &grid.edges[node.edges[1]];
+            childEdge = &grid.edges[node.edges[0]];
+        }
+
+        // Re-attach edge
+        childEdge->z_c += parentEdge->z_c;
+        childEdge->parent = parentEdge->parent;
+
+        // Mark node and parent edge for removal
+        parentEdge->parent = -1;
+        node.type = REMOVED;
+
+        simplify(grid, childEdge->child);
+        return;
+    }
+
+    // Recurse into children
+    for (edge_idx_t edgeId : node.edges)
+    {
+        GridEdge &edge = grid.edges[edgeId];
+        if (edge.child != n)
+        {
+            simplify(grid, edge.child);
+        }
+    }
 }

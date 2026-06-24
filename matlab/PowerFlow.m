@@ -155,9 +155,18 @@ classdef PowerFlow < handle
             % GETIMPEDANCES Returns array of all impedances in the network.
             %
             % See also:
-            %   PowerFlow
+            %   PowerFlow, setImpedances
 
             Z = PowerFlowMex("getImpedances", this.networkHandle);
+        end
+
+        function setImpedances(this, Z)
+            % SETIMPEDANCES Sets all impedances in the network.
+            %
+            % See also:
+            %   PowerFlow, getImpedances
+
+            PowerFlowMex("setImpedances", this.networkHandle, Z);
         end
 
         function [dvds] = getDvDs(this)
@@ -217,6 +226,17 @@ classdef PowerFlow < handle
             %   PowerFlow
 
             radial = PowerFlowMex("isRadial", this.networkHandle);
+        end
+
+        function simplifyNetwork(this)
+            % SIMPLIFYNETWORK Simplifies the network by removing pass-through nodes. Network must be radial.
+            %   Simplifies the network by removing intermediate nodes which only have two branches.
+            %   The two branches merge into one branch, preserving the series impedance.
+            %
+            % See also:
+            %   PowerFlow, isRadial
+
+            PowerFlowMex("simplifyNetwork", this.networkHandle);
         end
     end
 end

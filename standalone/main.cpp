@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
     std::vector<std::vector<complex_t>> measuredLoadVoltages = {{}, {}, {}};
     
     // Load network. Nominal impdeances are not considered by this method    
-    std::ifstream file2("net_ols_small.txt");
+    std::ifstream file2("example_network.txt");
     if (!file2)
     {
         std::cerr << "Could not open network file 2" << std::endl;
@@ -106,6 +106,12 @@ int main(int argc, char* argv[])
     SolverSettings settings2;
     settings2.max_iterations_ols = 20;
     PowerFlowSolver pfs2 = PowerFlowSolver(std::move(net2), settings2, &logger);
+    
+    pfs2.simplifyNetwork();
+    std::ofstream file3("net_saved.txt");
+    pfs2.save(file3);
+    
+    return 0;
     
     for (int i = 0; i < 40; i++)
     {
@@ -168,7 +174,4 @@ int main(int argc, char* argv[])
     }
     
     pfs2.setImpedances(newImpedances);
-    
-    std::ofstream file3("net_saved.txt");
-    pfs2.save(file3);
 }

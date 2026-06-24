@@ -129,7 +129,12 @@ private:
     // Runs the GridSolvers and combines the result.
     void runGridSolvers();
 
-    void simplify(Grid &grid, node_idx_t n, int removedCount);
+    /**
+     * Recursively traverses given grid and merges cables in series.
+     * Marks nodes for removal, but does not remove them. This must
+     * be done separately.
+     */
+    void simplify(Grid &grid, node_idx_t n);
 };
 
 #endif

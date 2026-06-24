@@ -435,6 +435,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
 
+    // Experimental feature. TODO: consider removing this
     resistanceOnly = false;
 
     // Validate amount of samples (time steps)
@@ -485,7 +486,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
 
         for (auto& it : measuredValues)
         {
-            // Assume phase angle of load voltages = phase angle of slack voltage
+            // Initialize phase angle of load voltages = phase angle of slack voltage
             // eq. (15)
             it.second.U[t] = std::polar(std::abs(it.second.U[t]), angle);
         }
@@ -543,13 +544,15 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
     }
 
-    std::cout << "Failed to converge (max iterations = " << maxIterations << ")\n";
+    *logger << "Failed to converge (max iterations = " << maxIterations << ")\n";
 
+    // TODO: consider making this optional? Disabled for now. 
+    // If user wants to restore impedances that can be done with getImpedances and setImpedances
     // Restore parameters
-    for (size_t i = 0; i < edgeCount; i++)
+    /*for (size_t i = 0; i < edgeCount; i++)
     {
         grid->edges[i].z_c = oldImpedances[i];
-    }
+    }*/
 
     return newImpedances;
 }
