@@ -83,6 +83,10 @@ public:
         {
             solveParamsOLS(outputs, inputs);
         }
+        else if (command == "solveParamsLAD")
+        {
+            solveParamsLAD(outputs, inputs);
+        }
         else if (command == "getLoadVoltages")
         {
             getLoadVoltages(outputs, inputs);
@@ -357,6 +361,37 @@ private:
 
         std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
         std::vector<complex_t> Z = solver->solveParamsOLS(measuredValues, slackVoltages);
+
+        outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
+    }
+
+    void solveParamsLAD(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<complex_t> voltages = inputs[3];
+        matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
+        matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
+
+        size_t samples = voltages.getDimensions()[1];
+
+        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        for (size_t i = 0; i < keys.getNumberOfElements(); i++)
+        {
+            MeasuredValues val;
+
+            for (size_t j = 0; j < samples; j++)
+            {
+                val.U.push_back(voltages[i][j]);
+                val.S.push_back(powerInjections[i][j]);
+            }
+
+            measuredValues[keys[i]] = std::move(val);
+        }
+
+        std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
+        std::vector<complex_t> Z = solver->solveParamsLAD(measuredValues, slackVoltages);
 
         outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
     }

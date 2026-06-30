@@ -1,5 +1,5 @@
 classdef PowerFlow < handle
-    % POWERFLOW A library for power flow computations. 
+    % POWERFLOW A library for power flow/load flow computations. 
     % It can:
     % - Estimate state in radial and non-radial networks.
     % - Compute gradients in radial networks analytically.
@@ -110,9 +110,26 @@ classdef PowerFlow < handle
             % - Z (array) - Array of estimated cable parameters (1 x number of branches)
             %
             % See also:
-            %   PowerFlow
+            %   PowerFlow, solveParamsLAD
 
             Z = PowerFlowMex("solveParamsOLS", this.networkHandle, keys, voltages, powerInjections, slackVoltages);
+        end
+
+        function [Z] = solveParamsLAD(this, keys, voltages, powerInjections, slackVoltages)
+            % SOLVEPARAMSLAD Estimates cable parameters in network using LAD regression.
+            % Input arguments:
+            % - keys (array) - Array of LOAD node indexes (1 x number of LOAD nodes).
+            % - voltages (table) - Table of LOAD node voltages (number of LOAD nodes x number of samples).
+            % - powerInjections (table) - Table of LOAD powers (number of LOAD nodes x number of samples).
+            % - slackVoltages (array) - Array of SLACK voltages (1 x number of samples).
+            %
+            % Output arguments:
+            % - Z (array) - Array of estimated cable parameters (1 x number of branches)
+            %
+            % See also:
+            %   PowerFlow, solveParamsOLS
+
+            Z = PowerFlowMex("solveParamsLAD", this.networkHandle, keys, voltages, powerInjections, slackVoltages);
         end
 
         function [V] = getLoadVoltages(this)

@@ -63,6 +63,9 @@ public:
      */
     std::vector<complex_t> solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
+
+    std::vector<complex_t> solveParamsLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages);
     
 	// Returns all LOAD voltages in the network.
 	std::vector<complex_t> getLoadVoltages() const;

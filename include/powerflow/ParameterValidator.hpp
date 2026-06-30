@@ -55,6 +55,9 @@ public:
     std::vector<complex_t> validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations);
 
+    std::vector<complex_t> validateLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages);
+
 private:
     double precision;
     Grid* grid{nullptr};
@@ -64,11 +67,16 @@ private:
     std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
 
     /**
-     * If true, solveParamsOLS will only estimate resistances, 
+     * If true, validateRegression will only estimate resistances, 
      * else both resistances and reactances will be estimated.
      * True when all Q measurements are zero.
      */
     bool resistanceOnly = false;
+
+    /**
+     * If true, will use NNLS instead of OLS. Managed internally by validateRegression.
+     */
+    bool useNNLS = false;
 
     /** Recursive function that traverses all child nodes of node with given ID. 
      * Returns a tuple of current I, power injection S, voltage U, and validity. 
@@ -103,4 +111,12 @@ private:
      * loads vector and edges vector, respectively.
      */
     void GetDownStream(node_idx_t n, std::vector<edge_idx_t> &edges, std::vector<node_idx_t> &loads);
+
+    /**
+     * Solves LAD problem. Places estimated impedances in Z vector.
+     */
+    void SolveLAD(const Eigen::MatrixXd &A, const Eigen::VectorXd &b, std::vector<double> &Z);
+
+    void EstimateParametersLAD(std::vector<std::vector<complex_t>> &branchCurrents, std::vector<complex_t> &slackVoltages, 
+        std::vector<complex_t> &newImpedances);
 };

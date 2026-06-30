@@ -40,5 +40,5 @@ add_custom_command(
 add_custom_command(
         TARGET PowerFlowStandalone POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-                ${CMAKE_SOURCE_DIR}/examples/example_network.txt
-                ${CMAKE_CURRENT_BINARY_DIR}/example_network.txt)
+                ${CMAKE_SOURCE_DIR}/examples/example_network2.txt
+                ${CMAKE_CURRENT_BINARY_DIR}/example_network2.txt)

@@ -78,6 +78,13 @@ std::vector<complex_t> PowerFlowSolver::solveParamsOLS(std::unordered_map<node_i
     return pv.validateRegression(measuredValues, slackVoltages, settings.ols_precision, settings.max_iterations_ols);
 }
 
+std::vector<complex_t> PowerFlowSolver::solveParamsLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> &slackVoltages)
+{
+    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, {}, 1e9);
+    return pv.validateLAD(measuredValues, slackVoltages);   
+}
+
 // Creates appropriate GridSolvers for each grid in the network
 // Depending on the characteristics of the grid
 void PowerFlowSolver::createGridSolvers()
@@ -284,7 +291,8 @@ void PowerFlowSolver::runGridSolvers()
     // If solution hasnt converged after max number of iterations
     if (maxGridIteration > 0)
     {
-        throw std::runtime_error("PowerFlowSolver: The solution did not converge. Maximum number of iterations reached.");
+        *logger << "[PowerFlow] Solution did not converge, max number of iterations reached." << std::endl;
+        //throw std::runtime_error("PowerFlowSolver: The solution did not converge. Maximum number of iterations reached.");
     }
 }
 
@@ -649,30 +657,86 @@ void PowerFlowSolver::simplifyNetwork()
         connection.loadImplicitNode = netNodeMap[connection.loadImplicitGrid][connection.loadImplicitNode];
         connection.slackImplicitNode = netNodeMap[connection.slackImplicitGrid][connection.slackImplicitNode];
     }
+
+    firstRun = true;
+    gridSolvers.clear();
 }
 
 void PowerFlowSolver::simplify(Grid &grid, node_idx_t n)
 {
     GridNode &node = grid.nodes[n];
+    const double mergeThreshold = 1e-6;
+
+    // TODO: test this, unsure if it works correctly
+    // Pass 1: remove zero-impedance cables
+    for (edge_idx_t edgeId : node.edges)
+    {
+        GridEdge &edge = grid.edges[edgeId];
+        if (edge.child == n) continue; 
+        if (std::abs(edge.z_c) >= mergeThreshold) continue;
+
+        node_idx_t childIdx = edge.child;
+        GridNode &child = grid.nodes[childIdx];
+
+        // Cannot merge if child is a LOAD or SLACK — would lose boundary node
+        if (child.type == LOAD || child.type == LOAD_IMPLICIT ||
+            child.type == SLACK || child.type == SLACK_IMPLICIT)
+            continue;
+
+        // Re-attach all of child's outgoing edges to current node
+        for (edge_idx_t childEdgeId : child.edges)
+        {
+            GridEdge &childEdge = grid.edges[childEdgeId];
+            if (childEdge.child == childIdx) continue;  // skip incoming edge
+
+            // Re-parent this edge to current node
+            childEdge.parent = n;
+            node.edges.push_back(childEdgeId);
+        }
+
+        // Mark zero edge and child node for removal
+        edge.parent = -1;
+        child.type = REMOVED;
+
+        // Remove the zero edge and child from current node's edge list
+        node.edges.erase(
+            std::remove(node.edges.begin(), node.edges.end(), edgeId),
+            node.edges.end()
+        );
+    }
 
     // Check if node is candidate for removal
     if (node.type == MIDDLE && node.edges.size() == 2)
     {
-        GridEdge *parentEdge, *childEdge;
+        edge_idx_t parentEdgeId, childEdgeId;
         if (grid.edges[node.edges[0]].child == n)
         {
-            parentEdge = &grid.edges[node.edges[0]];
-            childEdge = &grid.edges[node.edges[1]];
+            parentEdgeId = node.edges[0];
+            childEdgeId  = node.edges[1];
         }
         else
         {
-            parentEdge = &grid.edges[node.edges[1]];
-            childEdge = &grid.edges[node.edges[0]];
+            parentEdgeId = node.edges[1];
+            childEdgeId  = node.edges[0];
         }
 
-        // Re-attach edge
-        childEdge->z_c += parentEdge->z_c;
-        childEdge->parent = parentEdge->parent;
+        GridEdge *parentEdge = &grid.edges[parentEdgeId];
+        GridEdge *childEdge  = &grid.edges[childEdgeId];
+
+        // Merge impedances and re-attach child edge to grandparent
+        childEdge->z_c    += parentEdge->z_c;
+        childEdge->parent  = parentEdge->parent;
+
+        // This fixes multi-edge chains not being merged correctly
+        GridNode &grandparent = grid.nodes[parentEdge->parent];
+        for (edge_idx_t &e : grandparent.edges)
+        {
+            if (e == parentEdgeId)
+            {
+                e = childEdgeId;
+                break;
+            }
+        }
 
         // Mark node and parent edge for removal
         parentEdge->parent = -1;

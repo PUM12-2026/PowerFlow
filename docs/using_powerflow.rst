@@ -13,3 +13,4 @@ It is strongly recommended to read the "General concepts" section before continu
    gradients
    reading_csv
    cable_parameters
+   full_example_matlab

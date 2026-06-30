@@ -5,7 +5,7 @@ if(CODE_COVERAGE)
 endif()
 
 # lib/Eigen
-target_include_directories(PowerFlowLib PUBLIC ${PROJECT_SOURCE_DIR}/include PUBLIC ${PROJECT_SOURCE_DIR}/lib)
+target_include_directories(PowerFlowLib PUBLIC ${PROJECT_SOURCE_DIR}/include PUBLIC ${PROJECT_SOURCE_DIR}/lib PUBLIC ${PROJECT_SOURCE_DIR}/lib/Eigen/unsupported)
 
 # SCS
 find_package(Threads REQUIRED)

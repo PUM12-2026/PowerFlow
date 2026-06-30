@@ -3,9 +3,9 @@ import random
 # This script can be used to generate synthetic data for testing cable parameter estimation using regression
 
 # Amount of samples to generate for slack and load
-T = 40
+T = 100
 # Amount of load nodes
-loads = 3
+loads = 7
 
 slack_mean_re = 1.0
 slack_std_re = 0.005
