@@ -149,7 +149,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def_readwrite("max_iterations_zbusjacobi", &SolverSettings::max_iterations_zbusjacobi)
         .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision)
         .def_readwrite("max_iterations_ols", &SolverSettings::max_iterations_ols)
-        .def_readwrite("ols_precision", &SolverSettings::ols_precision);
+        .def_readwrite("ols_precision", &SolverSettings::ols_precision)
         .def_readwrite("verbose_logging", &SolverSettings::verbose_logging);
 
     pybind11::class_<PowerFlow>(m, "PowerFlow")
