@@ -12,6 +12,7 @@
 #include "powerflow/network.hpp"
 #include "powerflow/NetworkLoader.hpp"
 #include "powerflow/PowerFlowSolver.hpp"
+#include "powerflow/solverSettings.hpp"
 #include "powerflow/logger/CppLogger.hpp"
 
 // PowerFlow Python interface class.
@@ -149,6 +150,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def_readwrite("zbusjacobi_precision", &SolverSettings::zbusjacobi_precision)
         .def_readwrite("max_iterations_ols", &SolverSettings::max_iterations_ols)
         .def_readwrite("ols_precision", &SolverSettings::ols_precision);
+        .def_readwrite("verbose_logging", &SolverSettings::verbose_logging);
 
     pybind11::class_<PowerFlow>(m, "PowerFlow")
         .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg_v("settings", SolverSettings(), "SolverSettings()"))

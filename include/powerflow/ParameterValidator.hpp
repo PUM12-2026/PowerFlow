@@ -2,6 +2,7 @@
 
 #include "powerflow/network.hpp"
 #include "powerflow/logger/Logger.hpp"
+#include "powerflow/solverSettings.hpp"
 #include <unordered_map>
 #include <Eigen/Dense>
 
@@ -30,7 +31,7 @@ struct MeasuredValues
 class ParameterValidator
 {
 public:
-    ParameterValidator(Grid* grid, Logger* const logger, const std::unordered_map<node_idx_t, complex_t> &measuredV, 
+    ParameterValidator(Grid* grid, Logger* const logger, SolverSettings* const settings, const std::unordered_map<node_idx_t, complex_t> &measuredV, 
         double precision);
 
     /**
@@ -53,7 +54,7 @@ public:
      * @param maxIterations Max amount of iterations
      */
     std::vector<complex_t> validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
-        std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations);
+        std::vector<complex_t> &slackVoltages);
 
     std::vector<complex_t> validateLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
@@ -62,6 +63,7 @@ private:
     double precision;
     Grid* grid{nullptr};
     Logger* const logger{nullptr};
+    SolverSettings* settings{nullptr};
     // Map of node IDs to measured (true) voltages
     std::unordered_map<node_idx_t, complex_t> const measuredV;
     std::unordered_map<node_idx_t, MeasuredValues> measuredValues;

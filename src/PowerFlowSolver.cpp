@@ -66,7 +66,7 @@ void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t
 {
     for (Grid& grid : network->grids)
     {
-        ParameterValidator pv = ParameterValidator(&grid, logger, V, precision);
+        ParameterValidator pv = ParameterValidator(&grid, logger, &settings, V, precision);
         pv.validate();
     }
 }
@@ -74,14 +74,14 @@ void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t
 std::vector<complex_t> PowerFlowSolver::solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages)
 {
-    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, {}, 1e9);
-    return pv.validateRegression(measuredValues, slackVoltages, settings.ols_precision, settings.max_iterations_ols);
+    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, &settings, {}, 1e9);
+    return pv.validateRegression(measuredValues, slackVoltages);
 }
 
 std::vector<complex_t> PowerFlowSolver::solveParamsLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages)
 {
-    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, {}, 1e9);
+    ParameterValidator pv = ParameterValidator(&network->grids[0], logger, &settings, {}, 1e9);
     return pv.validateLAD(measuredValues, slackVoltages);   
 }
 

@@ -1,15 +1,17 @@
 #include <algorithm>
 #include <unordered_set>
 
+#ifdef SCS_AVAILABLE
 #include "scs.h"
 #include "scs_types.h"
+#endif
 
 #include "Eigen/NNLS"
 
 #include "powerflow/ParameterValidator.hpp"
 
-ParameterValidator::ParameterValidator(Grid* grid, Logger* const logger, const std::unordered_map<node_idx_t, complex_t> &measuredV, double precision)
-    : grid(grid), logger(logger), measuredV(measuredV), precision(precision) {}
+ParameterValidator::ParameterValidator(Grid* grid, Logger* const logger, SolverSettings* const settings, const std::unordered_map<node_idx_t, complex_t> &measuredV, double precision)
+    : grid(grid), logger(logger), settings(settings), measuredV(measuredV), precision(precision) {}
 
 
 void ParameterValidator::validate()
@@ -511,9 +513,11 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
 
 
 std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
-    std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations)
+    std::vector<complex_t> &slackVoltages)
 {
     this->measuredValues = measuredValues;
+    double convergenceThreshold = settings->ols_precision;
+    int maxIterations = settings->max_iterations_ols;
     
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
@@ -621,13 +625,16 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
         if (converged)
         {
-            if (useNNLS)
+            if (settings->verbose_logging)
             {
-                *logger << "[PowerFlow] NNLS parameter estimation converged after " << i + 1 << " iterations." << std::endl;
-            }
-            else
-            {
-                *logger << "[PowerFlow] OLS parameter estimation converged after " << i + 1 << " iterations." << std::endl;
+                if (useNNLS)
+                {
+                    *logger << "[PowerFlow] NNLS parameter estimation converged after " << i + 1 << " iterations." << std::endl;
+                }
+                else
+                {
+                    *logger << "[PowerFlow] OLS parameter estimation converged after " << i + 1 << " iterations." << std::endl;
+                }
             }
             return newImpedances;
         }
@@ -639,7 +646,8 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
     }
 
-    *logger << "[PowerFlow] OLS Failed to converge (max iterations = " << maxIterations << ")\n";
+    if (settings->verbose_logging)
+        *logger << "[PowerFlow] OLS Failed to converge (max iterations = " << maxIterations << ")\n";
 
     return newImpedances;
 }
@@ -647,6 +655,11 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
 std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages)
 {
+#ifndef SCS_AVAILABLE
+    *logger << "[PowerFlow] SCS missing, cannot use LAD regression" << std::endl;
+    return {};
+#endif
+
     this->measuredValues = measuredValues;
     
     const size_t edgeCount = grid->edges.size();
@@ -658,11 +671,19 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_i
         if (val.S.size() != timeSteps)
         {
             std::cerr << "Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.S.size() << std::endl;
+            *logger << "[PowerFlow] Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.S.size() << std::endl;
             return {};
         }
         if (val.U.size() != timeSteps)
         {
             std::cerr << "Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
+            *logger << "[PowerFlow] Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
+            return {};
+        }
+        if (key >= grid->nodes.size())
+        {
+            std::cerr << "Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
+            *logger << "[PowerFlow] Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
             return {};
         }
         
@@ -687,6 +708,7 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_i
             if (std::abs(u) == 0)
             {
                 std::cerr << "Voltage at node " << key << " is zero. Voltages may not be zero." << std::endl;
+                *logger << "[PowerFlow] Voltage at node " << key << " is zero. Voltages may not be zero." << std::endl;
                 return {};
             }
         }
@@ -721,7 +743,7 @@ void ParameterValidator::SolveLAD(const Eigen::MatrixXd &A, const Eigen::VectorX
     //             z >= 0
     //
     // Variables: x = [r, x_hat, t_0, ..., t_{n-1}]
-
+#ifdef SCS_AVAILABLE
     const int n = (int)b.size();
     const int nParams = (int)A.cols();
     const int nVars = nParams + n;
@@ -837,6 +859,7 @@ void ParameterValidator::SolveLAD(const Eigen::MatrixXd &A, const Eigen::VectorX
     {
         Z[i] = x_sol.data()[i];
     }
+#endif
 }
 
 void ParameterValidator::EstimateParametersLAD(std::vector<std::vector<complex_t>> &branchCurrents, std::vector<complex_t> &slackVoltages, 

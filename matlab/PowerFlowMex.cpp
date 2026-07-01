@@ -5,6 +5,7 @@
 
 #include "powerflow/NetworkLoader.hpp"
 #include "powerflow/PowerFlowSolver.hpp"
+#include "powerflow/solverSettings.hpp"
 #include "powerflow/network.hpp"
 #include "powerflow/logger/Logger.hpp"
 
@@ -277,6 +278,14 @@ private:
                         throw std::invalid_argument("Invalid ols_precision");
                     }
                     settings.ols_precision = field[0];
+                }
+                else if (fieldName == "verbose_logging")
+                {
+                    if (field.getType() != matlab::data::ArrayType::LOGICAL || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid verbose_logging");
+                    }
+                    settings.verbose_logging = field[0];
                 }
                 else
                 {

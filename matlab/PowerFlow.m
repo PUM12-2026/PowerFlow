@@ -17,32 +17,42 @@ classdef PowerFlow < handle
         function this = PowerFlow(networkFilePath, settings)
             % Constructor.
             % Input Arguments:
-            % - networkFilePath (string) -
-            %   Path to network file.
-            % - settings (struct) -
-            %   Settings struct. Possible settings include:
+            % - networkFilePath (string) - Path to network file.
+            % - settings (struct) - Settings struct. Possible settings include:
             %   - settings.max_iterations_total (integer) - Max number of
             %   iterations for the entire network. Default 10000.
+            %
             %   - settings.max_iterations_gauss (integer) - Max number of
             %   iterations for Gauss-Seidel solver. Default 10000.
+            %
             %   - settings.gauss_seidel_precision (double) - Max power
             %   mismatch for Gauss-Seidel solver convergence. Default
             %   1e-10.
+            %
             %   - settings.max_iterations_bfs (integer) - Max number of
-            %   iterations for BFS solver. Defaul 10000.
+            %   iterations for BFS solver. Default 10000.
+            %
             %   - settings.bfs_precision (double) - Max power mismatch for
             %   BFS solver convergence. Default 1e-10.
+            %
             %   - settings.max_iterations_zbusjacobi - Max number of
             %   iterations for ZBus Jacobi solver. Default 10000.
+            %
             %   - settings.zbusjacobi_precision - Max power mismatch for
             %   ZBus Jacobi solver convergence. Default 1e-10.
+            %
             %   - settings.compute_gradients (true/false) - Whether to
             %   compute gradients in BFS solver. Default false.
+            %
             %   - settings.max_iterations_ols (integer) - Max iterations
             %   for OLS parameter estimation. Default 20.
+            %
             %   - settings.ols_precision (double) - Max change in
             %   parameters between iterations for OLS parameter estimation
             %   convergence. Default 1e-3.
+            %
+            %   - settings.verbose_logging (bool) - If true, additional information
+            %   will be logged. If false, only errors will be logged.
             %
             % See also:
             %   PowerFlow
