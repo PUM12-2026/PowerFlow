@@ -5,6 +5,7 @@
 
 #include "powerflow/NetworkLoader.hpp"
 #include "powerflow/PowerFlowSolver.hpp"
+#include "powerflow/solverSettings.hpp"
 #include "powerflow/network.hpp"
 #include "powerflow/logger/Logger.hpp"
 
@@ -67,6 +68,10 @@ public:
         {
             loadNetwork(outputs, inputs);
         }
+        else if (command == "save")
+        {
+            save(outputs, inputs);
+        }
         else if (command == "solve")
         {
             solve(outputs, inputs);
@@ -75,9 +80,13 @@ public:
         {
             solveParams(outputs, inputs);
         }
-        else if (command == "solveParamsReg")
+        else if (command == "solveParamsOLS")
         {
-            solveParamsReg(outputs, inputs);
+            solveParamsOLS(outputs, inputs);
+        }
+        else if (command == "solveParamsLAD")
+        {
+            solveParamsLAD(outputs, inputs);
         }
         else if (command == "getLoadVoltages")
         {
@@ -98,6 +107,10 @@ public:
         else if (command == "getImpedances")
         {
             getImpedances(outputs, inputs);
+        }
+        else if (command == "setImpedances")
+        {
+            setImpedances(outputs, inputs);
         }
         else if (command == "reset")
         {
@@ -122,6 +135,14 @@ public:
         else if (command == "getDslossDs")
         {
             getDslossDs(outputs, inputs);
+        }
+        else if (command == "isRadial")
+        {
+            isRadial(outputs, inputs);
+        }
+        else if (command == "simplifyNetwork")
+        {
+            simplifyNetwork(outputs, inputs);
         }
         else
         {
@@ -242,6 +263,30 @@ private:
                     }
                     settings.zbusjacobi_precision = field[0];
                 }
+                else if (fieldName == "max_iterations_ols")
+                {
+                    if (field.getType() != matlab::data::ArrayType::DOUBLE || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid max_iterations_ols");
+                    }
+                    settings.max_iterations_ols = field[0];
+                }
+                else if (fieldName == "ols_precision")
+                {
+                    if (field.getType() != matlab::data::ArrayType::DOUBLE || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid ols_precision");
+                    }
+                    settings.ols_precision = field[0];
+                }
+                else if (fieldName == "verbose_logging")
+                {
+                    if (field.getType() != matlab::data::ArrayType::LOGICAL || field.getNumberOfElements() != 1)
+                    {
+                        throw std::invalid_argument("Invalid verbose_logging");
+                    }
+                    settings.verbose_logging = field[0];
+                }
                 else
                 {
                     throw std::invalid_argument("Invalid option " + fieldName + " in setting struct");
@@ -261,6 +306,20 @@ private:
         // Send the solver handle up to MATLAB.
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createScalar<std::uint64_t>(handle);
+    }
+
+    void save(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        if (inputs.size() < 3 || inputs[2].getType() != matlab::data::ArrayType::MATLAB_STRING)
+        {
+            throw std::invalid_argument("Missing file path");
+        }
+
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::string filePath = inputs[2][0];
+        std::ofstream file(filePath);
+
+        solver->save(file);
     }
 
     void solve(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
@@ -284,7 +343,7 @@ private:
         solver->solve(S, V);
     }
 
-    void solveParamsReg(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    void solveParamsOLS(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
@@ -292,8 +351,6 @@ private:
         matlab::data::TypedArray<complex_t> voltages = inputs[3];
         matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
         matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
-        double convergenceThreshold = inputs[6][0];
-        int maxIterations = static_cast<int>(inputs[7][0]);
 
         size_t samples = voltages.getDimensions()[1];
 
@@ -312,7 +369,40 @@ private:
         }
 
         std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
-        solver->solveParamsReg(measuredValues, slackVoltages, convergenceThreshold, maxIterations);
+        std::vector<complex_t> Z = solver->solveParamsOLS(measuredValues, slackVoltages);
+
+        outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
+    }
+
+    void solveParamsLAD(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<complex_t> voltages = inputs[3];
+        matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
+        matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
+
+        size_t samples = voltages.getDimensions()[1];
+
+        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        for (size_t i = 0; i < keys.getNumberOfElements(); i++)
+        {
+            MeasuredValues val;
+
+            for (size_t j = 0; j < samples; j++)
+            {
+                val.U.push_back(voltages[i][j]);
+                val.S.push_back(powerInjections[i][j]);
+            }
+
+            measuredValues[keys[i]] = std::move(val);
+        }
+
+        std::vector<complex_t> slackVoltages(slackVoltages_.begin(), slackVoltages_.end());
+        std::vector<complex_t> Z = solver->solveParamsLAD(measuredValues, slackVoltages);
+
+        outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
     }
 
     void solveParams(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
@@ -369,6 +459,20 @@ private:
         std::vector<complex_t> Z = solver->getImpedances();
         matlab::data::ArrayFactory factory;
         outputs[0] = factory.createArray({1, Z.size()}, Z.begin(), Z.end());
+    }
+
+    void setImpedances(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::TypedArray<complex_t> impedances = inputs[2];
+        std::vector<complex_t> Z(impedances.begin(), impedances.end());
+
+        if (Z.size() != solver->getImpedances().size())
+        {
+            throw std::invalid_argument("Wrong array size. Expected " + std::to_string(solver->getImpedances().size()) + " elements, got " + std::to_string(Z.size()));
+        }
+
+        solver->setImpedances(Z);
     }
 
     void getDvDs(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
@@ -449,6 +553,19 @@ private:
         }
 
         outputs[0] = std::move(out);
+    }
+
+    void isRadial(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        matlab::data::ArrayFactory factory;
+        outputs[0] = factory.createScalar<bool>(solver->isRadial());
+    }
+
+    void simplifyNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        solver->simplifyNetwork();
     }
 
     void resetNetwork(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)

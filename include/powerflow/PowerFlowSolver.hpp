@@ -5,24 +5,12 @@
 #include "powerflow/solvers/GridSolver.hpp"
 #include "powerflow/logger/Logger.hpp"
 #include "powerflow/ParameterValidator.hpp"
+#include "powerflow/solverSettings.hpp"
 #include <memory>
 #include <tuple>
 #include <vector>
 #include <string>
 #include <unordered_map>
-
-// Settings that can be passed to the solver.
-struct SolverSettings
-{
-    int max_iterations_gauss{100000};
-    double gauss_seidel_precision{1e-10};
-    int max_iterations_bfs{10000};
-    double bfs_precision{1e-10};
-    int max_iterations_zbusjacobi{10000};
-    double zbusjacobi_precision{1e-10};
-    int max_iterations_total{10000};
-    bool compute_gradients{false};
-};
 
 // Class responsible for solving an entire Network.
 class PowerFlowSolver
@@ -58,11 +46,12 @@ public:
      * 
      * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
      * @param slackVoltages Time-series voltages at SLACK node
-     * @param convergenceThreshold Minimum change in impedances between iterations before convergence is accepted
-     * @param maxIterations Max amount of iterations
      */
-    void solveParamsReg(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
-        std::vector<complex_t> &slackVoltages, double convergenceThreshold, int maxIterations);
+    std::vector<complex_t> solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages);
+
+    std::vector<complex_t> solveParamsLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+        std::vector<complex_t> &slackVoltages);
     
 	// Returns all LOAD voltages in the network.
 	std::vector<complex_t> getLoadVoltages() const;
@@ -79,6 +68,9 @@ public:
     // Returns all cable impedances in the network.
     std::vector<complex_t> getImpedances() const;
 
+    // Sets all cable impedances in the network;
+    void setImpedances(std::vector<complex_t> &Z);
+
     // Returns the gradients of all nodes in the network except SLACK (root) node, with respect to all of the LOAD powers.
     std::vector<std::vector<std::array<double, 2>>> getDvDs() const;
 
@@ -93,6 +85,19 @@ public:
 
     // Resets powers to 0 and voltages to 1.
     void reset();
+
+    // Saves network to file
+    void save(std::ofstream& file);
+
+    /**
+     * Returns true if the network is radial, else false.
+     */
+    bool isRadial();
+
+    /**
+     * Simplifies the network by merging cables in series
+     */
+    void simplifyNetwork();
 
 private:
     std::vector<std::unique_ptr<GridSolver>> gridSolvers;
@@ -112,6 +117,13 @@ private:
 
     // Runs the GridSolvers and combines the result.
     void runGridSolvers();
+
+    /**
+     * Recursively traverses given grid and merges cables in series.
+     * Marks nodes for removal, but does not remove them. This must
+     * be done separately.
+     */
+    void simplify(Grid &grid, node_idx_t n);
 };
 
 #endif

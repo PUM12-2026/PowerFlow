@@ -32,3 +32,13 @@ add_custom_command(
         COMMAND ${CMAKE_COMMAND} -E copy
                 ${CMAKE_SOURCE_DIR}/examples/net_large_test.txt
                 ${CMAKE_CURRENT_BINARY_DIR}/net_large_test.txt)
+add_custom_command(
+        TARGET PowerFlowStandalone POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/examples/net_ols_small.txt
+                ${CMAKE_CURRENT_BINARY_DIR}/net_ols_small.txt)
+add_custom_command(
+        TARGET PowerFlowStandalone POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/examples/example_network2.txt
+                ${CMAKE_CURRENT_BINARY_DIR}/example_network2.txt)

@@ -86,6 +86,8 @@ def verify_cable_parameters_regression():
     print("Verifying cable parameters regression...")
         
     settings = PowerFlowPython.SolverSettings()
+    settings.max_iterations_ols = 20
+    settings.ols_precision = 3e-4
 
     power_flow_ref = PowerFlowPython.PowerFlow("examples/net_large_ref.txt", settings)
     power_flow_fault = PowerFlowPython.PowerFlow("examples/net_large_test.txt", settings)
@@ -99,7 +101,7 @@ def verify_cable_parameters_regression():
 
     ref_impedances = power_flow_ref.getImpedances()
 
-    power_flow_fault.solveParamsReg(regression_data.measured_voltages, regression_data.measured_loads, regression_data.slack_voltages, 3e-4, 20)
+    power_flow_fault.solveParamsOLS(regression_data.measured_voltages, regression_data.measured_loads, regression_data.slack_voltages)
 
     check_list_types(
         data=power_flow_fault.getImpedances(), name="impedances"

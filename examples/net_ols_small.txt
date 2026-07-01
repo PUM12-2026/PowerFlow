@@ -1,0 +1,22 @@
+# Small net for testing OLS voltage angles
+#       0
+#      / \
+#     1   2
+#        / \
+#       3   4
+
+grid
+1 1
+0 1 (0.05, 0.02)
+0 2 (0.04, 0.01)
+2 3 (0.03, 0.01)
+2 4 (0.02, 0.01)
+%
+0 s
+1 l
+3 l
+4 l
+%
+
+connections
+%
