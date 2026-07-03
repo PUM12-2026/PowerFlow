@@ -47,7 +47,7 @@ public:
         std::unordered_map<node_idx_t, std::vector<complex_t>> &measuredPowerInjections,
         std::vector<complex_t> &slackVoltages)
     {
-        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        std::unordered_map<node_key_t, MeasuredValues> measuredValues;
         for (auto &[key, U] : measuredVoltages)
         {
             measuredValues[key] = MeasuredValues{U, measuredPowerInjections.at(key)};

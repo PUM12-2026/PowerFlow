@@ -47,10 +47,10 @@ public:
      * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
      * @param slackVoltages Time-series voltages at SLACK node
      */
-    std::vector<complex_t> solveParamsOLS(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> solveParamsOLS(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
-    std::vector<complex_t> solveParamsLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> solveParamsLAD(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
     
 	// Returns all LOAD voltages in the network.
@@ -117,13 +117,6 @@ private:
 
     // Runs the GridSolvers and combines the result.
     void runGridSolvers();
-
-    /**
-     * Recursively traverses given grid and merges cables in series.
-     * Marks nodes for removal, but does not remove them. This must
-     * be done separately.
-     */
-    void simplify(Grid &grid, node_idx_t n);
 };
 
 #endif

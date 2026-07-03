@@ -354,7 +354,7 @@ private:
 
         size_t samples = voltages.getDimensions()[1];
 
-        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        std::unordered_map<node_key_t, MeasuredValues> measuredValues;
         for (size_t i = 0; i < keys.getNumberOfElements(); i++)
         {
             MeasuredValues val;
@@ -385,7 +385,7 @@ private:
 
         size_t samples = voltages.getDimensions()[1];
 
-        std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+        std::unordered_map<node_key_t, MeasuredValues> measuredValues;
         for (size_t i = 0; i < keys.getNumberOfElements(); i++)
         {
             MeasuredValues val;

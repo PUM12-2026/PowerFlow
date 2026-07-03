@@ -1,6 +1,7 @@
 #include "powerflow/NetworkLoader.hpp"
 #include "powerflow/NetworkLoaderError.hpp"
 #include <set>
+#include <iostream>
 
 /// Loads a network from a network file. Read README.md for format and check the examples for reference.
 NetworkLoader::NetworkLoader(std::istream& file) : file{ file } { }
@@ -44,7 +45,7 @@ Grid NetworkLoader::loadGrid()
 
     std::string line;
     std::stringstream sstream{};
-    int nodeCount = 0; // Number of nodes in the grid
+    node_idx_t nodeCount = 0; // Number of nodes in the grid
     
     // Get edges.
     while (getNextLine(line))
@@ -55,32 +56,54 @@ Grid NetworkLoader::loadGrid()
             break;
 
         sstream << line;
-        GridEdge edge;
+        node_key_t parentId, childId;
+        complex_t z;
 
         // Catches cases where the line contains invalid values
-        if (!(sstream >> edge.parent) || edge.parent < 0)
+        if (!(sstream >> parentId) || parentId < 0)
         {
             throw NetworkLoaderError("Invalid edge parent index", curLine);
         }
-        if (!(sstream >> edge.child) || edge.child < 0)
+        if (!(sstream >> childId) || childId < 0)
         {
             throw NetworkLoaderError("Invalid edge child index", curLine);
         }
-        if (!(sstream >> edge.z_c))
+        if (!(sstream >> z))
         {
             throw NetworkLoaderError("Invalid edge impedance", curLine);
         }
 
+        if (grid.nodeMap.find(parentId) == grid.nodeMap.end())
+        {
+            node_idx_t parentIdx = nodeCount;
+            grid.idMap.push_back(parentId);
+            grid.nodeMap[parentId] = parentIdx;
+
+            nodeCount++;
+        }
+        if (grid.nodeMap.find(childId) == grid.nodeMap.end())
+        {
+            node_idx_t childIdx = nodeCount;
+            grid.idMap.push_back(childId);
+            grid.nodeMap[childId] = childIdx;
+
+            nodeCount++;
+        }
+
+        edge_idx_t edgeIdx = static_cast<edge_idx_t>(grid.edges.size());
+        GridEdge edge;
+        edge.parent = grid.nodeMap[parentId];
+        edge.child = grid.nodeMap[childId];
+        edge.z_c = z;
 
         // Commented line is for calculating impedence per edge
         // edge.z_c = edge.z_c / ((grid.vBase * grid.vBase) / grid.sBase); // Convert to per-unit
-
 
         // If the edge is valid, add it to the grid and update the node count
         grid.edges.push_back(edge);
 
         // We want to resize the nodeCount size later so that all nodes, and children are included. (+1 since the node indices are 0-based)
-        nodeCount = std::max(nodeCount, std::max(edge.parent + 1, edge.child + 1));
+        //nodeCount = std::max(nodeCount, std::max(edge.parent + 1, edge.child + 1));
 
         // Clear the stringstream for the next line
         sstream.str("");
@@ -117,10 +140,11 @@ Grid NetworkLoader::loadGrid()
             break;
 
         sstream << line;
-        int nodeIdx = 0;
+        node_key_t nodeId = 0;
+        node_idx_t nodeIdx;
         std::string type;
 
-        if (!(sstream >> nodeIdx) || nodeIdx < 0 || static_cast<typename std::vector<GridNode>::size_type>(nodeIdx) >= grid.nodes.size())
+        if (!(sstream >> nodeId) || grid.nodeMap.find(nodeId) == grid.nodeMap.end())
         {
             throw NetworkLoaderError("Invalid node index", curLine);
         }
@@ -128,6 +152,13 @@ Grid NetworkLoader::loadGrid()
         {
             throw NetworkLoaderError("Missing or invalid node type", curLine);
         }
+
+        nodeIdx = grid.nodeMap[nodeId];
+        if (static_cast<typename std::vector<GridNode>::size_type>(nodeIdx) >= grid.nodes.size())
+        {
+            throw NetworkLoaderError("Invalid node index", curLine);
+        }
+
         if (type == "si")
         {
             // Sets the type of the node to SLACK_IMPLICIT if the type is "si"
@@ -153,8 +184,6 @@ Grid NetworkLoader::loadGrid()
             throw NetworkLoaderError("Invalid node type", curLine);
         }
         // NOTE: If the node does specify a type, it will be set to MIDDLE
-
-
 
         // Clear the stringstream for the next line
         sstream.str("");
@@ -198,7 +227,6 @@ void NetworkLoader::getGridBase(Grid& grid)
         throw NetworkLoaderError("Invalid base line", curLine);
     }
 }
-
 
 
 /// Loads the list of connections from the network file. Expected format for each line is:

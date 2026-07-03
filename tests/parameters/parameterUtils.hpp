@@ -43,7 +43,7 @@ struct ParameterRegTestConfig
     std::string distortedNetworkPath;
 
     /** @brief The measured values for each node in the network. */
-    std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+    std::unordered_map<node_key_t, MeasuredValues> measuredValues;
 
     /** @brief The voltage for every node in the network. */
     std::vector<complex_t> slackVoltages;
