@@ -62,6 +62,42 @@ void PowerFlowSolver::solve(const std::vector<complex_t> &S, const std::vector<c
     runGridSolvers();
 }
 
+void PowerFlowSolver::solveById(const std::unordered_map<node_key_t, complex_t> &S, const std::unordered_map<node_key_t, complex_t> &V)
+{
+    std::vector<complex_t> powers, voltages;
+    for (Grid &grid: network->grids)
+    {
+        for (node_idx_t n = 0; n < grid.nodes.size(); n++)
+        {
+            GridNode &node = grid.nodes[n];
+            if (node.type == LOAD)
+            {
+                node_key_t key = grid.idMap[n];
+                if (S.find(key) == S.end())
+                {
+                    *logger << "[PowerFlow] Missing power measurement for load node " << key << " in S" << std::endl;
+                    throw std::runtime_error("Missing power measurement");
+                }
+
+                powers.push_back(S.at(key));
+            }
+            else if (node.type == SLACK)
+            {
+                node_key_t key = grid.idMap[n];
+                if (V.find(key) == V.end())
+                {
+                    *logger << "[PowerFlow] Missing voltage measurement for slack node " << key << " in V" << std::endl;
+                    throw std::runtime_error("Missing voltage measurement");
+                }
+
+                voltages.push_back(V.at(key));
+            }
+        }
+    }
+
+    solve(powers, voltages);
+}
+
 void PowerFlowSolver::solveParams(const std::unordered_map<node_idx_t, complex_t> &V, double precision)
 {
     for (Grid& grid : network->grids)

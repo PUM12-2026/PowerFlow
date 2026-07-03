@@ -23,6 +23,8 @@ public:
     // Solve network.
     void solve(const std::vector<complex_t> &P, const std::vector<complex_t> &V);
 
+    void solveById(const std::unordered_map<node_key_t, complex_t> &S, const std::unordered_map<node_key_t, complex_t> &V);
+
     /** 
      * @brief Identifies invalid parameters and adjusts them. 
      * 
