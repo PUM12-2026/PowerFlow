@@ -1,5 +1,5 @@
 Installation
-========
+============
 
 To build PowerFlow for your platform, you need `CMake <https://cmake.org/>`_ and a suitable
 C++17 compiler. The instructions in this section assume the following compilers are used:
@@ -125,6 +125,28 @@ Once the environment is active, install the dependencies and build PowerFlow:
 Once completed, the necessary files can be found in ``python/``. The most important files
 generated are ``PowerFlowPython.cp314-win_amd64.pyd`` (or ``.so``) and
 ``PowerFlowPython.pyi``.
+
+
+SCS and LAD Regression
+----------------------
+PowerFlow has support for performing cable parameter estimation using LAD regression. This is an optional module. If LAD regression is desired, SCS must be installed (see `SCS  installation guide <https://www.cvxgrp.org/scs/install/c.html#c-install>`__ for more detailed instructions.)
+
+To install SCS on Windows, follow these steps:
+
+1. Clone the SCS repository to a desired directory ``git clone https://github.com/cvxgrp/scs.git``
+2. Navigate to the SCS directory ``cd scs``
+3. Build SCS ``mkdir build && cd build``
+
+  * ``cmake ..``
+  * ``cmake -DBUILD_INSTALL_PREFIX:PATH="C:/path/to/install/scs" -DUSE_LAPACK=0 .``
+  * ``cmake --build . --config Release``
+  * ``cmake --install . --config Release``
+
+4. Navigate to the powerflow/build folder and tell CMake where SCS is installed ``cmake -DCMAKE_PREFIX_PATH="C:/path/to/install/scs" .``
+
+If done correctly, you should see the following message when building PowerFlow: ``-- SCS found: LAD parameter estimation enabled.``
+
+If you get the following error while running PowerFlow from MATLAB: ``Invalid MEX-file 'C:\path\to\matlab\script\PowerFlowMex.mexw64': The specified module could not be found.`` you need to copy ``scsdir.dll`` from your ``scs/build/bin/Release`` folder to your MATLAB script folder.
 
 Linking to PowerFlow
 --------------------

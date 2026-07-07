@@ -420,7 +420,7 @@ private:
     {
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
-        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<node_key_t> keys = inputs[2];
         matlab::data::TypedArray<complex_t> voltages = inputs[3];
         matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
         matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
