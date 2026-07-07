@@ -136,6 +136,10 @@ public:
         {
             getDsDs(outputs, inputs);
         }
+        else if (command == "getIdMaps")
+        {
+            getIdMaps(outputs, inputs);
+        }
         else if (command == "getDslossDs")
         {
             getDslossDs(outputs, inputs);
@@ -587,6 +591,28 @@ private:
             {
                 out[i][j][0] = dSlossdS[i][j][0]; // Real value
                 out[i][j][1] = dSlossdS[i][j][1]; // Imaginary value
+            }
+        }
+
+        outputs[0] = std::move(out);
+    }
+
+    void getIdMaps(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+        std::vector<std::vector<node_key_t>> idMaps = solver->getIdMaps();
+        matlab::data::ArrayFactory factory;
+        matlab::data::CellArray out = factory.createCellArray({1, idMaps.size()});
+
+        for (size_t i = 0; i < idMaps.size(); i++)
+        {
+            const std::vector<node_key_t> &inner = idMaps[i];
+            matlab::data::TypedArray<int64_t> innerArray = factory.createArray<int64_t>({1, inner.size()});
+
+            for (size_t j = 0; j < inner.size(); j++)
+            {
+                innerArray[j] = (int64_t)inner[j];
+                out[i] = innerArray;
             }
         }
 

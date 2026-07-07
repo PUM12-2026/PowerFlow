@@ -101,6 +101,11 @@ public:
      */
     void simplifyNetwork();
 
+    /**
+     * Returns a vector of index-to-ID mappings, one for each grid in the network.
+     */
+    std::vector<std::vector<node_key_t>> getIdMaps();
+
 private:
     std::vector<std::unique_ptr<GridSolver>> gridSolvers;
     std::shared_ptr<Network> network;

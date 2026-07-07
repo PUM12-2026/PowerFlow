@@ -247,6 +247,16 @@ classdef PowerFlow < handle
             dslossds = PowerFlowMex("getDslossDs", this.networkHandle);
         end
 
+        function [idMaps] = getIdMaps(this)
+            % GETIDMAPS Returns an array of index-to-ID mappings, one for each grid.
+            % The element at position (a, b) contains the ID of node b in grid a.
+            %
+            % See also:
+            %   PowerFlow
+
+            idMaps = PowerFlowMex("getIdMaps", this.networkHandle);
+        end
+
         function reset(this)
             % RESET Resets the state of the network, setting all voltages to 1, and all powers to 0.
             %

@@ -61,6 +61,7 @@ struct Grid
     std::unordered_map<node_key_t, node_idx_t> nodeMap{};
     // Map internal node_idx to external id
     std::vector<node_key_t> idMap{};
+    
     std::vector<GridEdge> edges{};
     std::vector<GridNode> nodes{};
     double sBase = 1;

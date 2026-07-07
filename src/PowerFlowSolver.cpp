@@ -622,3 +622,13 @@ void PowerFlowSolver::simplifyNetwork()
     firstRun = true;
     gridSolvers.clear();
 }
+
+std::vector<std::vector<node_key_t>> PowerFlowSolver::getIdMaps()
+{
+    std::vector<std::vector<node_key_t>> idMaps;
+    for (Grid &grid : network->grids)
+    {
+        idMaps.push_back(grid.idMap);
+    }
+    return idMaps;
+}

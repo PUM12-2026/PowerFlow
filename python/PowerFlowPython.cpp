@@ -110,6 +110,11 @@ public:
         return solver->getDslossDs();
     }
 
+    std::vector<std::vector<node_key_t>> getIdMaps()
+    {
+        return solver->getIdMaps();
+    }
+
     void reset()
     {
         solver->reset();
@@ -173,6 +178,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def("getDiDs", &PowerFlow::getDiDs, "Get current gradients of all edges w.r.t. power of all LOAD nodes")
         .def("getDsDs", &PowerFlow::getDsDs, "Get power gradients of all nodes except LOAD nodes w.r.t. power all of LOAD nodes")
         .def("getDslossDs", &PowerFlow::getDslossDs, "Get power loss gradients of all edges w.r.t. power all of LOAD nodes")
+        .def("getIdMaps", &PowerFlow::getIdMaps, "Get a list of index-to-ID mappings, one for each grid.")
         .def("reset", &PowerFlow::reset, "Reset network powers and voltages")
         .def("save", &PowerFlow::save, "Saves the network to file")
         .def("isRadial", &PowerFlow::isRadial, "Checks whether the network is radial. Returns true if it is, else returns false")

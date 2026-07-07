@@ -196,9 +196,29 @@ int main(int argc, char* argv[])
     std::unique_ptr<Network> net3 = loader3.loadNetwork();
     
     PowerFlowSolver pfs3 = PowerFlowSolver(std::move(net3), {}, &logger);
+    std::vector<std::vector<node_key_t>> idMaps = pfs3.getIdMaps();
+    for (auto idMap : idMaps)
+    {
+        std::cout << "Grid\n";
+        for (size_t i = 0; i < idMap.size(); i++)
+        {
+            std::cout << idMap[i] << "\n";
+        }
+    }
+    
     pfs3.simplifyNetwork();
     std::ofstream file4("simplify_test.txt");
     pfs3.save(file4);
+
+    idMaps = pfs3.getIdMaps();
+    for (auto idMap : idMaps)
+    {
+        std::cout << "Grid\n";
+        for (size_t i = 0; i < idMap.size(); i++)
+        {
+            std::cout << idMap[i] << "\n";
+        }
+    }
 
     return 0;
 }
