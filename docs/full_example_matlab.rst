@@ -127,7 +127,7 @@ We can save the nominal cable parameters suing ``getImpedances()``, then estimat
     end
 
 Estimating voltages and computing gradients
-===========================================
+-------------------------------------------
 
 Estimating voltages and computing gradients are both done using the ``solve(S, V)`` function or the ``solveById(sKeys, S, vKeys, V)``. Computation of gradients requires the network to be radial, and must be enabled in settings. To change the settings we have to create a new solver. 
 
