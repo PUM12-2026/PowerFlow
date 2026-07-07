@@ -543,9 +543,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
         if (grid->nodeMap.find(key) == grid->nodeMap.end())
         {
-            std::cerr << "Node " << key << " is not a valid node."<< std::endl;
-            *logger << "[PowerFlow] Node " << key << " is not a valid node."<< std::endl;
-            return {};
+            *logger << "[PowerFlow] Warning: node " << key << " is not a valid node."<< std::endl;
         }
         
         if (resistanceOnly)
@@ -689,9 +687,7 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_k
         }
         if (grid->nodeMap.find(key) == grid->nodeMap.end())
         {
-            std::cerr << "Node " << key << " is not a valid node."<< std::endl;
-            *logger << "[PowerFlow] Node " << key << " is not a valid node."<< std::endl;
-            return {};
+            *logger << "[PowerFlow] Warning: node " << key << " is not a valid node."<< std::endl;
         }
         
         if (resistanceOnly)

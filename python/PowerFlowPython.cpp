@@ -38,6 +38,11 @@ public:
         solver->solve(S, V);
     }
 
+    void solveById(std::unordered_map<node_key_t, complex_t> &S, std::unordered_map<node_key_t, complex_t> &V)
+    {
+        solver->solveById(S, V);
+    }
+
     void solveParams(std::unordered_map<node_idx_t, complex_t> &V, double precision)
     {
         solver->solveParams(V, precision);
@@ -155,6 +160,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
     pybind11::class_<PowerFlow>(m, "PowerFlow")
         .def(pybind11::init<const std::string &, const SolverSettings &>(), pybind11::arg("filePath"), pybind11::arg_v("settings", SolverSettings(), "SolverSettings()"))
         .def("solve", &PowerFlow::solve, pybind11::arg("P"), pybind11::arg("V"), "Solve the power flow problem")
+        .def("solveById", &PowerFlow::solveById, pybind11::arg("S"), pybind11::arg("V"), "Solve the network, input byt ID.")
         .def("solveParams", &PowerFlow::solveParams, pybind11::arg("V"), pybind11::arg("precision"), "Find and adjust invalid cable parameters. WARNING: Not recommended, use solveParamsOLS instead.")
         .def("solveParamsOLS", &PowerFlow::solveParamsOLS, pybind11::arg("measuredVoltages"), pybind11::arg("measuredPowerInjections"), pybind11::arg("slackVoltages"), "Estimate cable parameters in grid using regression.")
         .def("getLoadVoltages", &PowerFlow::getLoadVoltages, "Get the LOAD node voltages")
@@ -162,7 +168,7 @@ PYBIND11_MODULE(PowerFlowPython, m)
         .def("getCurrents", &PowerFlow::getCurrents, "Get currents")
         .def("getSlackPowers", &PowerFlow::getSlackPowers, "Get SLACK_IMPLICIT/SLACK powers")
         .def("getImpedances", &PowerFlow::getImpedances, "Get impedances")
-        .def("setImpedances", &PowerFlow::setImpedances, "Set impedances")
+        .def("setImpedances", &PowerFlow::setImpedances, pybind11::arg("Z"), "Set impedances")
         .def("getDvDs", &PowerFlow::getDvDs, "Get voltage gradients of all nodes except root node w.r.t. power of all LOAD nodes")
         .def("getDiDs", &PowerFlow::getDiDs, "Get current gradients of all edges w.r.t. power of all LOAD nodes")
         .def("getDsDs", &PowerFlow::getDsDs, "Get power gradients of all nodes except LOAD nodes w.r.t. power all of LOAD nodes")

@@ -76,6 +76,10 @@ public:
         {
             solve(outputs, inputs);
         }
+        else if (command == "solveById")
+        {
+            solveById(outputs, inputs);
+        }
         else if (command == "solveParams")
         {
             solveParams(outputs, inputs);
@@ -343,11 +347,45 @@ private:
         solver->solve(S, V);
     }
 
+    void solveById(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
+    {
+        if (inputs.size() < 3 || inputs[2].getType() != matlab::data::ArrayType::INT64)
+            throw std::invalid_argument("Missing or invalid S key vector");
+        if (inputs.size() < 4 || inputs[3].getType() != matlab::data::ArrayType::COMPLEX_DOUBLE)
+            throw std::invalid_argument("Missing or invalid S value vector");
+        if (inputs.size() < 5 || inputs[4].getType() != matlab::data::ArrayType::INT64)
+            throw std::invalid_argument("Missing or invalid V key vector");
+        if (inputs.size() < 6 || (inputs[5].getType() != matlab::data::ArrayType::COMPLEX_DOUBLE && !inputs[5].isEmpty()))
+            throw std::invalid_argument("Missing or invalid V value vector");
+
+        std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
+
+        matlab::data::TypedArray<node_key_t> matlabSKeys    = inputs[2];
+        matlab::data::TypedArray<complex_t> matlabSVals     = inputs[3];
+        matlab::data::TypedArray<node_key_t> matlabVKeys    = inputs[4];
+        matlab::data::TypedArray<complex_t> matlabVVals     = inputs[5];
+
+        if (matlabSKeys.getNumberOfElements() != matlabSVals.getNumberOfElements())
+            throw std::invalid_argument("S keys and values must have the same length");
+        if (matlabVKeys.getNumberOfElements() != matlabVVals.getNumberOfElements())
+            throw std::invalid_argument("V keys and values must have the same length");
+
+        std::unordered_map<node_key_t, complex_t> S, V;
+
+        for (size_t i = 0; i < matlabSKeys.getNumberOfElements(); i++)
+            S[(node_key_t)matlabSKeys[i]] = matlabSVals[i];
+
+        for (size_t i = 0; i < matlabVKeys.getNumberOfElements(); i++)
+            V[(node_key_t)matlabVKeys[i]] = matlabVVals[i];
+
+        solver->solveById(S, V);
+    }
+
     void solveParamsOLS(matlab::mex::ArgumentList outputs, matlab::mex::ArgumentList inputs)
     {
         std::unique_ptr<PowerFlowSolver> &solver = solvers.at(getSolverHandle(inputs));
         matlab::data::ArrayFactory factory;
-        matlab::data::TypedArray<node_idx_t> keys = inputs[2];
+        matlab::data::TypedArray<node_key_t> keys = inputs[2];
         matlab::data::TypedArray<complex_t> voltages = inputs[3];
         matlab::data::TypedArray<complex_t> powerInjections = inputs[4];
         matlab::data::TypedArray<complex_t> slackVoltages_ = inputs[5];
