@@ -26,8 +26,9 @@ n = 100;
 % Number of load nodes
 nLoads = 7;
 
-% This array tells PowerFlow which nodes are load nodes
-keys = int32([3, 4, 6, 7, 8, 9, 10]);
+% This array tells PowerFlow which measurements correspond to which load
+% nodes
+keys = int64([4, 5, 7, 9, 10, 11, 12]);
 
 % Measurement tables
 S = zeros(nLoads, n);
@@ -92,6 +93,9 @@ V_sample = complex(V_slack(1), 0);
 % Solving the network to estimate state, this also computes gradients
 pfs.solve(S_sample, V_sample);
 
+% Alternatively we can explicitly pass in keys to the solver
+pfs.solveById(keys, S_sample, int64(0), V_sample);
+
 % Retrieve voltages at load nodes
 V_sim = pfs.getLoadVoltages();
 
@@ -100,8 +104,8 @@ for i = 1 : length(V_sim)
     fprintf("   %d\t|| Measured V: %f\t  Simulated V: %f\n", i, abs(V(i, 1)), abs(V_sim(i)));
 end
     
-    % Retrieve gradients
-    dVdS = pfs.getDvDs();
-    dSdS = pfs.getDsDs();
-    dSlossDs = pfs.getDslossDs();
-    dIdS = pfs.getDiDs();
+% Retrieve gradients
+dVdS = pfs.getDvDs();
+dSdS = pfs.getDsDs();
+dSlossDs = pfs.getDslossDs();
+dIdS = pfs.getDiDs();
