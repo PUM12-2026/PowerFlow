@@ -512,10 +512,9 @@ void ParameterValidator::ForwardSweep(node_idx_t n, size_t t, std::vector<comple
 }
 
 
-std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages)
 {
-    this->measuredValues = measuredValues;
     double convergenceThreshold = settings->ols_precision;
     int maxIterations = settings->max_iterations_ols;
     
@@ -542,11 +541,9 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
             *logger << "[PowerFlow] Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
             return {};
         }
-        if (key >= grid->nodes.size())
+        if (grid->nodeMap.find(key) == grid->nodeMap.end())
         {
-            std::cerr << "Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
-            *logger << "[PowerFlow] Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
-            return {};
+            *logger << "[PowerFlow] Warning: node " << key << " is not a valid node."<< std::endl;
         }
         
         if (resistanceOnly)
@@ -576,13 +573,23 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
     }
 
+    this->measuredValues = {};
+    for (auto &it : measuredValues)
+    {
+        node_key_t nodeId = it.first;
+        MeasuredValues &sample = it.second;
+
+        node_idx_t nodeIdx = grid->nodeMap[nodeId];
+        this->measuredValues[nodeIdx] = sample;
+    }
+
     // Initialise voltages for each time t
     for (size_t t = 0; t < timeSteps; t++)
     {
         // Slack voltage phase angle
         double angle = std::arg(slackVoltages[t]);
 
-        for (auto& it : measuredValues)
+        for (auto& it : this->measuredValues)
         {
             // Initialize phase angle of load voltages = phase angle of slack voltage
             // eq. (15)
@@ -652,7 +659,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
     return newImpedances;
 }
 
-std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
     std::vector<complex_t> &slackVoltages)
 {
 #ifndef SCS_AVAILABLE
@@ -660,8 +667,6 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_i
     return {};
 #endif
 
-    this->measuredValues = measuredValues;
-    
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
 
@@ -680,11 +685,9 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_i
             *logger << "[PowerFlow] Node " << key << " has invalid amount of samples. Expected " << timeSteps << ", got " << val.U.size() << std::endl;
             return {};
         }
-        if (key >= grid->nodes.size())
+        if (grid->nodeMap.find(key) == grid->nodeMap.end())
         {
-            std::cerr << "Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
-            *logger << "[PowerFlow] Key " << key << " is out of bounds (" << grid->nodes.size() << ")" << std::endl;
-            return {};
+            *logger << "[PowerFlow] Warning: node " << key << " is not a valid node."<< std::endl;
         }
         
         if (resistanceOnly)
@@ -700,8 +703,18 @@ std::vector<complex_t> ParameterValidator::validateLAD(std::unordered_map<node_i
         }
     }
 
+    this->measuredValues = {};
+    for (auto &it : measuredValues)
+    {
+        node_key_t nodeId = it.first;
+        MeasuredValues &sample = it.second;
+
+        node_idx_t nodeIdx = grid->nodeMap[nodeId];
+        this->measuredValues[nodeIdx] = sample;
+    }
+
     // Validate voltages
-    for (auto &[key, val] : measuredValues)
+    for (auto &[key, val] : this->measuredValues)
     {
         for (complex_t u : val.U)
         {

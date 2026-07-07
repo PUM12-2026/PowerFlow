@@ -89,8 +89,9 @@ We can save the nominal cable parameters suing ``getImpedances()``, then estimat
     % Number of load nodes
     nLoads = 7;
     
-    % This array tells PowerFlow which nodes are load nodes
-    keys = int32([3, 4, 6, 7, 8, 9, 10]);
+    % This array tells PowerFlow which measurements correspond to which load
+    % nodes
+    keys = int64([4, 5, 7, 9, 10, 11, 12]);
     
     % Measurement tables
     S = zeros(nLoads, n);
@@ -128,7 +129,7 @@ We can save the nominal cable parameters suing ``getImpedances()``, then estimat
 Estimating voltages and computing gradients
 ===========================================
 
-Estimating voltages and computing gradients are both done using the ``solve(S, V)`` function. Computation of gradients requires the network to be radial, and must be enabled in settings. To change the settings we have to create a new solver. 
+Estimating voltages and computing gradients are both done using the ``solve(S, V)`` function or the ``solveById(sKeys, S, vKeys, V)``. Computation of gradients requires the network to be radial, and must be enabled in settings. To change the settings we have to create a new solver. 
 
 .. code-block :: matlab
     
@@ -146,6 +147,9 @@ To estimate voltages, we need pass ``SLACK`` voltages and ``LOAD`` power consump
     
     % Solving the network to estimate state, this also computes gradients
     pfs.solve(S_sample, V_sample);
+
+    % Alternatively we can explicitly pass in keys to the solver
+    pfs.solveById(keys, S_sample, int64(0), V_sample);
 
 We can then compare the simulated voltages to the measured voltages:
 

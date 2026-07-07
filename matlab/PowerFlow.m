@@ -85,9 +85,19 @@ classdef PowerFlow < handle
             % SOLVE Estimates state in network given power consumptions S and slack voltages V.
             %
             % See also:
-            %   PowerFlow
+            %   PowerFlow, solveById
 
             PowerFlowMex("solve", this.networkHandle, S, V);
+        end
+
+        function solveById(this, sKeys, sVals, vKeys, vVals)
+            % SOLVE Estimates state in network given power consumptions S and slack voltages V.
+            % Values are passed in as key-value pais, where keys correspond to node IDs.
+            %
+            % See also:
+            %   PowerFlow, solve
+
+            PowerFlowMex("solveById", this.networkHandle, sKeys, sVals, vKeys, vVals);
         end
 
         function solveParams(this, keysV, valsV, precision)
@@ -235,6 +245,16 @@ classdef PowerFlow < handle
             %   PowerFlow
 
             dslossds = PowerFlowMex("getDslossDs", this.networkHandle);
+        end
+
+        function [idMaps] = getIdMaps(this)
+            % GETIDMAPS Returns an array of index-to-ID mappings, one for each grid.
+            % The element at position (a, b) contains the ID of node b in grid a.
+            %
+            % See also:
+            %   PowerFlow
+
+            idMaps = PowerFlowMex("getIdMaps", this.networkHandle);
         end
 
         function reset(this)

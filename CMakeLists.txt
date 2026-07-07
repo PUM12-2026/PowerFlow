@@ -9,7 +9,7 @@ enable_testing()
 
 # Add compiler flags conditionally
 if(MSVC)
-    add_compile_options(/W4 /permissive- /Zc:__cplusplus)
+    add_compile_options(/W4 /permissive- /Zc:__cplusplus /FS)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()

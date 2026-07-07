@@ -53,10 +53,10 @@ public:
      * @param convergenceThreshold Minimum change in impedances between iterations before convergence is accepted
      * @param maxIterations Max amount of iterations
      */
-    std::vector<complex_t> validateRegression(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> validateRegression(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
-    std::vector<complex_t> validateLAD(std::unordered_map<node_idx_t, MeasuredValues> &measuredValues, 
+    std::vector<complex_t> validateLAD(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
 private:

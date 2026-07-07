@@ -10,6 +10,7 @@ using complex_t = std::complex<double>;
 using node_idx_t = int;
 using grid_idx_t = int;
 using edge_idx_t = int;
+using node_key_t = long long;
 
 static const double SQRT3 = 1.73205080757;
 
@@ -30,7 +31,7 @@ enum NodeType
     SLACK,
     SLACK_IMPLICIT,
     
-    // Used for modification of grid
+    // Used for removing nodes
     REMOVED
 };
 
@@ -56,6 +57,11 @@ struct GridConnection
 
 struct Grid
 {
+    // Map external node ids to internal node_idx
+    std::unordered_map<node_key_t, node_idx_t> nodeMap{};
+    // Map internal node_idx to external id
+    std::vector<node_key_t> idMap{};
+    
     std::vector<GridEdge> edges{};
     std::vector<GridNode> nodes{};
     double sBase = 1;

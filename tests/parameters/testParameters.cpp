@@ -52,7 +52,7 @@ TEST_CASE("U-02.2: Update wrong impedance in one cable when using regression.", 
     };
 
     // We place each load node time series data into a MeasuredValues struct
-    std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+    std::unordered_map<node_key_t, MeasuredValues> measuredValues;
     measuredValues[1] = {measuredLoadVoltages[0], measuredLoads[0]};
     measuredValues[2] = {measuredLoadVoltages[1], measuredLoads[1]};
     measuredValues[3] = {measuredLoadVoltages[2], measuredLoads[2]};
@@ -60,12 +60,12 @@ TEST_CASE("U-02.2: Update wrong impedance in one cable when using regression.", 
     measuredValues[6] = {measuredLoadVoltages[4], measuredLoads[4]};
     measuredValues[7] = {measuredLoadVoltages[5], measuredLoads[5]};
     measuredValues[8] = {measuredLoadVoltages[6], measuredLoads[6]};
-    measuredValues[10] = {measuredLoadVoltages[7], measuredLoads[7]};
-    measuredValues[11] = {measuredLoadVoltages[8], measuredLoads[8]};
+    measuredValues[100] = {measuredLoadVoltages[7], measuredLoads[7]};
+    measuredValues[200] = {measuredLoadVoltages[8], measuredLoads[8]};
 
     checkNetworkImpedancesReg({
         "examples/net_large_ref.txt",  // referenceNetworkPath
-        "examples/net_large_test.txt", // distortedNetworkPath
+        "examples/net_large_ref.txt", // distortedNetworkPath
         measuredValues,                // Map of load node IDs to time series data
         slackVoltages,                 // Map of slack node IDs to time series data
         3e-4,                          // Convergence threshold for the estimation algorithm
@@ -165,7 +165,7 @@ TEST_CASE("F-03.4: Identify no cables issues when all impedances are the correct
 TEST_CASE("F-04.1: Identify invalid number of power injection samples for the regression parameter estimation.", "[functional][parameters]")
 {
     std::vector<complex_t> slackVoltages(20, {1.0, 0.0});
-    std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+    std::unordered_map<node_key_t, MeasuredValues> measuredValues;
     measuredValues[1] = { std::vector<complex_t>(20, {1.0, 0.0}), std::vector<complex_t>(19, {0.0, 0.0}) };
 
     auto expectedError = ExpectedError{
@@ -187,7 +187,7 @@ TEST_CASE("F-04.1: Identify invalid number of power injection samples for the re
 TEST_CASE("F-04.2: Identify invalid number of voltage samples for the regression parameter estimation.", "[functional][parameters]")
 {
     std::vector<complex_t> slackVoltages(20, {1.0, 0.0});
-    std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+    std::unordered_map<node_key_t, MeasuredValues> measuredValues;
     measuredValues[1] = { std::vector<complex_t>(19, {1.0, 0.0}), std::vector<complex_t>(20, {0.0, 0.0}) };
 
     auto expectedError = ExpectedError{
@@ -209,7 +209,7 @@ TEST_CASE("F-04.2: Identify invalid number of voltage samples for the regression
 TEST_CASE("F-04.3: Identify zero voltages for the regression parameter estimation.", "[functional][parameters]")
 {
     std::vector<complex_t> slackVoltages(20, {1.0, 0.0});
-    std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
+    std::unordered_map<node_key_t, MeasuredValues> measuredValues;
     std::vector<complex_t> volts(20, {1.0, 0.0});
     volts[5] = {0.0, 0.0};
     measuredValues[1] = { volts, std::vector<complex_t>(20, {0.0, 0.0}) };
