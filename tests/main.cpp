@@ -396,3 +396,197 @@ TEST_CASE("T-06: Verify that GridAnalyzer correctly determines the appropriate s
     REQUIRE(solverTypeSlack != ZBUSJACOBI);
     REQUIRE(solverTypeSlack != BACKWARDFOWARDSWEEP);
 }
+
+TEST_CASE("T-1.1: Verify that network is simplified correctly.", "[validation]")
+{
+    // Load file and ensure it exists
+    std::ifstream netFile("examples/test_networks/net_to_simplify.txt");
+    CHECK_FALSE(netFile.fail());
+
+    // Standard setup
+    NetworkLoader loader(netFile);
+    std::unique_ptr<Network> net = loader.loadNetwork();
+    SolverSettings settings;
+    CppLogger logger(std::cout);
+    PowerFlowSolver solver(std::move(net), settings, &logger);
+
+    size_t nLoads = solver.getLoadVoltages().size();
+
+    // Ensure network is radial
+    REQUIRE(solver.isRadial());
+
+    solver.simplifyNetwork();
+
+    // Check that there are 10 nodes after simplification
+    REQUIRE(solver.getAllVoltages().size() == 11);
+
+    // Check that the amount of load nodes hasn't changed
+    REQUIRE(solver.getLoadVoltages().size() == nLoads);
+}
+
+TEST_CASE("T-1.2: Verify that simplified network is equivalent to original network.", "[validation]")
+{
+    // Load file and ensure it exists
+    std::ifstream netFile("examples/test_networks/net_to_simplify.txt");
+    CHECK_FALSE(netFile.fail());
+
+    // Standard setup
+    NetworkLoader loader(netFile);
+    std::unique_ptr<Network> net = loader.loadNetwork();
+    SolverSettings settings;
+    CppLogger logger(std::cout);
+    PowerFlowSolver solver(std::move(net), settings, &logger);
+
+    std::unordered_map<node_key_t, complex_t> S;
+    S[4] = {0.05, 0.02};
+    S[5] = {0.05, 0.02};
+    S[7] = {0.05, 0.02};
+    S[9] = {0.05, 0.02};
+    S[10] = {0.05, 0.02};
+    S[11] = {0.05, 0.02};
+    S[12] = {0.05, 0.02};
+
+    std::unordered_map<node_key_t, complex_t> V;
+    V[0] = {1, 0};
+
+    // Ensure network is radial
+    REQUIRE(solver.isRadial());
+
+    solver.solveById(S, V);
+    auto V1 = solver.getLoadVoltages();
+    auto Z1 = solver.getImpedances();
+
+    solver.simplifyNetwork();
+    solver.solveById(S, V);
+    auto V2 = solver.getLoadVoltages();
+    auto Z2 = solver.getImpedances();
+
+    REQUIRE(V1.size() == V2.size());
+
+    // Check that results are within tolerance
+    REQUIRE(std::abs(V1[0] - V2[0]) < 1e-10);
+    REQUIRE(std::abs(V1[1] - V2[1]) < 1e-10);
+    REQUIRE(std::abs(V1[2] - V2[2]) < 1e-10);
+    REQUIRE(std::abs(V1[3] - V2[3]) < 1e-10);
+    REQUIRE(std::abs(V1[4] - V2[4]) < 1e-10);
+    REQUIRE(std::abs(V1[5] - V2[5]) < 1e-10);
+    REQUIRE(std::abs(V1[6] - V2[6]) < 1e-10);
+
+    complex_t Z1_sum = {0, 0};
+    complex_t Z2_sum = {0, 0};
+    for (size_t i = 0; i < Z1.size(); i++)
+    {
+        Z1_sum += Z1[i];
+    }
+    for (size_t i = 0; i < Z2.size(); i++)
+    {
+        Z2_sum += Z2[i];
+    }
+
+    // Check that impedances haven't changed
+    REQUIRE(std::abs(Z1_sum.real() - Z2_sum.real()) < 1e-10);
+    REQUIRE(std::abs(Z1_sum.imag() - Z2_sum.imag()) < 1e-10);
+}
+
+TEST_CASE("T-1.3: Verify that solve is equivalent to solveById.", "[validation]")
+{
+        // Load file and ensure it exists
+    std::ifstream netFile("examples/test_networks/net_to_simplify.txt");
+    CHECK_FALSE(netFile.fail());
+
+    // Standard setup
+    NetworkLoader loader(netFile);
+    std::unique_ptr<Network> net = loader.loadNetwork();
+    SolverSettings settings;
+    CppLogger logger(std::cout);
+    PowerFlowSolver solver(std::move(net), settings, &logger);
+
+    std::unordered_map<node_key_t, complex_t> S;
+    S[4] = {0.05, 0.02};
+    S[5] = {0.05, 0.02};
+    S[7] = {0.05, 0.02};
+    S[9] = {0.05, 0.02};
+    S[10] = {0.05, 0.02};
+    S[11] = {0.05, 0.02};
+    S[12] = {0.05, 0.02};
+    std::unordered_map<node_key_t, complex_t> V;
+    V[0] = {1, 0};
+
+    std::vector<complex_t> Svec = {
+        {0.05, 0.02},
+        {0.05, 0.02},
+        {0.05, 0.02},
+        {0.05, 0.02},
+        {0.05, 0.02},
+        {0.05, 0.02},
+        {0.05, 0.02}
+    };
+    std::vector<complex_t> Vvec = {{1, 0}};
+
+    solver.solve(Svec, Vvec);
+    auto V1 = solver.getLoadVoltages();
+
+    solver.reset();
+    solver.solveById(S, V);
+    auto V2 = solver.getLoadVoltages();
+
+    // Check that results are within tolerance
+    REQUIRE(std::abs(V1[0] - V2[0]) < 1e-10);
+    REQUIRE(std::abs(V1[1] - V2[1]) < 1e-10);
+    REQUIRE(std::abs(V1[2] - V2[2]) < 1e-10);
+    REQUIRE(std::abs(V1[3] - V2[3]) < 1e-10);
+    REQUIRE(std::abs(V1[4] - V2[4]) < 1e-10);
+    REQUIRE(std::abs(V1[5] - V2[5]) < 1e-10);
+    REQUIRE(std::abs(V1[6] - V2[6]) < 1e-10);
+}
+
+TEST_CASE("T-1.4: Verify that cycles are detected correctly.", "[validation]")
+{
+    SolverSettings settings;
+    CppLogger logger(std::cout);
+
+    // Load our test tree file and make sure it exists.
+    std::ifstream treeFile(localPath + "examples/test_networks/test_network.txt");
+    CHECK_FALSE(treeFile.fail());
+
+    // Create a loader that loads in the tree network from the file.
+    NetworkLoader treeLoader(treeFile);
+    std::unique_ptr<Network> treeNetwork = treeLoader.loadNetwork();
+
+    // Make sure that no subgrid has any cycle, i.e. all solvers shall have been
+    // determined to be solveable by a Backward-Forward Sweep solver.
+    GridAnalyzer analyzer;
+    bool containsCycle = false;
+    for (unsigned long gridIdx = 0; gridIdx < treeNetwork->grids.size(); gridIdx++)
+    {
+        if (analyzer.determineSolver(treeNetwork->grids[gridIdx]) != BACKWARDFOWARDSWEEP)
+        {
+            containsCycle = true;
+        }
+    }
+
+    PowerFlowSolver treeSolver(std::move(treeNetwork), settings, &logger);
+    REQUIRE(containsCycle != treeSolver.isRadial());
+
+    // Load our test cycle file and make sure it exists.
+    std::ifstream cycleFile(localPath + "examples/test_networks/test_network_cycle.txt");
+    CHECK_FALSE(cycleFile.fail());
+
+    // Create a loader that loads in the cycle network from the file.
+    NetworkLoader cycleLoader(cycleFile);
+    std::unique_ptr<Network> cycleNetwork = cycleLoader.loadNetwork();
+
+    // Make sure we have at least one cycle in our subgrids, i.e. at least one
+    // of our solvers shall have been determined to be either GaussSeidel or ZBusJacobi solver.
+    containsCycle = false;
+    for (unsigned long gridIdx = 0; gridIdx < cycleNetwork->grids.size(); gridIdx++)
+    {
+        if (analyzer.determineSolver(cycleNetwork->grids[gridIdx]) != BACKWARDFOWARDSWEEP)
+        {
+            containsCycle = true;
+        }
+    }
+
+    PowerFlowSolver cycleSolver(std::move(cycleNetwork), settings, &logger);
+    REQUIRE(containsCycle != cycleSolver.isRadial());
+}

@@ -116,6 +116,9 @@ It is possible to pass additional options to the solver using a settings struct:
    % Largest acceptable power mismatch for the ZBus Jacobi solver.
    settings.zbusjacobi_precision = 1e-10;
 
+   % Whether to print additional information to the console
+   settings.verbose_logging = false;
+
    net = PowerFlow("path/to/network.txt", settings);
 
 Thread safety
