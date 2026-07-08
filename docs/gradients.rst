@@ -16,10 +16,10 @@ before loading the network.
 Available gradient functions
 -----------------------------
 
-- ``getdIdS()`` – returns the current of each cable with respect to the household effects.
-- ``getdVdS()`` – returns the voltage of every node except the slack node with respect to the household effects.
-- ``getDsDs()`` – returns the effect of every node except household with respect to the household effects.
-- ``getDslossDs()`` – returns the effect loss of each cable with respect to the household effects.
+- ``getdIdS()`` – returns the current of each cable with respect to the household powers.
+- ``getdVdS()`` – returns the voltage of every node except the slack node with respect to the household powers.
+- ``getDsDs()`` – returns the effect of every node except household with respect to the household powers.
+- ``getDslossDs()`` – returns the effect loss of each cable with respect to the household powers.
 
 Python example
 --------------
@@ -49,18 +49,18 @@ Python example
    # Solve the network using PowerFlow.
    power_flow.solve(S, V)
 
-   # Get the current of each cable with respect to the household effects.
+   # Get the current of each cable with respect to the household powers.
    dIdS = power_flow.getdIdS()
 
    # Get the voltage of every node except the slack node
-   # with respect to the household effects.
+   # with respect to the household powers.
    dVdS = power_flow.getdVdS()
 
    # Get the effect of every node except household with
-   # respect to the household effects.
+   # respect to the household powers.
    dSdS = power_flow.getDsDs()
 
-   # Get the effect loss of each cable with respect to the household effects.
+   # Get the effect loss of each cable with respect to the household powers.
    dSlossDs = power_flow.getDslossDs()
 
 Matlab example
@@ -89,16 +89,16 @@ Matlab example
    % Solve the network using PowerFlow.
    power_flow.solve(S, V);
 
-   % Get the current of each cable with respect to the household effects.
+   % Get the current of each cable with respect to the household powers.
    dIdS = power_flow.getdIdS();
 
    % Get the voltage of every node except the slack node
-   % with respect to the household effects.
+   % with respect to the household powers.
    dVdS = power_flow.getdVdS();
 
    % Get the effect of every node except household with
-   % respect to the household effects.
+   % respect to the household powers.
    dSdS = power_flow.getDsDs();
 
-   % Get the effect loss of each cable with respect to the household effects.
+   % Get the effect loss of each cable with respect to the household powers.
    dSlossDs = power_flow.getDslossDs();

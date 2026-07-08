@@ -59,7 +59,7 @@ After calling ``simplifyNetwork()``, the network should look like this:
 .. image:: images/example_network2_simplified.png
    :width: 600
 
-As we can see, the chain has been replaced by a single cable. Some of the nodes were assigned new ID's, this is because of how PowerFlow internally handles networks.
+As we can see, the chain has been replaced by a single cable.
 
 We can save the network using ``save(filename)``:
 
@@ -79,24 +79,24 @@ Both methods require the following time series data:
 * Load node voltages
 * Load node powers
 
-All three of these must have the same amount of samples/columns. Some synthetic data has been provided for this network, see ``demo2.m`` in the ``examples`` directory.
+All three of these must have the same amount of samples/columns. Some synthetic data has been provided for this network, see ``examples/demo2.m``.
 
-We can save the nominal cable parameters suing ``getImpedances()``, then estimate parameters using the two methods:
+We can save the nominal cable parameters using ``getImpedances()``, then estimate parameters using the two methods:
 
 .. code-block :: matlab
+    
     % Number of samples
     n = 100;
     % Number of load nodes
     nLoads = 7;
     
-    % This array tells PowerFlow which measurements correspond to which load
-    % nodes
+    % This array tells PowerFlow which measurements correspond to which load nodes
     keys = int64([4, 5, 7, 9, 10, 11, 12]);
     
     % Measurement tables
     S = zeros(nLoads, n);
     V = zeros(nLoads, n);
-    V_slack = zeros(n);
+    V_slack = zeros(n, 1);
 
     % We fill S, V, and V_slack with data. 100 samples won't fit on screen here, so we don't show it. 
     % Check examples/demo2.m to see the data.

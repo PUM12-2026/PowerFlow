@@ -160,7 +160,7 @@ void PowerFlowSolver::createGridSolvers()
         {
         case GAUSSSEIDEL:
         {
-            *logger << "Found grid number " << gridNo << " suitable for Gauss-Seidel" << std::endl;
+            *logger << "[PowerFlow] Found grid number " << gridNo << " suitable for Gauss-Seidel" << std::endl;
 
             if (settings.compute_gradients)
             {
@@ -178,7 +178,7 @@ void PowerFlowSolver::createGridSolvers()
         }
         case BACKWARDFOWARDSWEEP:
         {
-            *logger << "Found grid number " << gridNo << " suitable for BFS" << std::endl;
+            *logger << "[PowerFlow] Found grid number " << gridNo << " suitable for BFS" << std::endl;
             std::unique_ptr<BackwardForwardSweepSolver> bfs = std::make_unique<BackwardForwardSweepSolver>(
                 &grid, logger,
                 settings.max_iterations_bfs,
@@ -192,7 +192,7 @@ void PowerFlowSolver::createGridSolvers()
         }
         case ZBUSJACOBI:
         {
-            *logger << "Found grid number " << gridNo << " suitable for ZBus Jacobi" << std::endl;
+            *logger << "[PowerFlow] Found grid number " << gridNo << " suitable for ZBus Jacobi" << std::endl;
 
             if (settings.compute_gradients)
             {
@@ -444,7 +444,7 @@ std::vector<std::vector<std::array<double, 2>>> PowerFlowSolver::getDvDs() const
         throw std::runtime_error("Gradients are unavailable. Enable 'compute_gradients' in settings and ensure the network uses Backward Forward Sweep.");
     }
 
-    size_t rootIdx = -1;
+    size_t rootIdx = 0;
     for (Grid const &grid : network->grids)
     {
         for (size_t nodeIdx = 0; nodeIdx < grid.nodes.size(); ++nodeIdx)

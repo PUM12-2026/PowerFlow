@@ -60,7 +60,7 @@ need Python 3 and pybind11 on your computer.
 
 .. note::
 
-   When installing pybind11 using pip, it may be necessary to select the "global" version.
+   When installing pybind11 using pip, it may be necessary to select the "global" version, ``pip install "pybind11[global]"``.
    On some Linux distributions, pybind11 may be installed using the package manager. For
    example, on Ubuntu, the python3-pybind11 package can be installed using apt.
 
@@ -131,18 +131,24 @@ SCS and LAD Regression
 ----------------------
 PowerFlow has support for performing cable parameter estimation using LAD regression. This is an optional module. If LAD regression is desired, SCS must be installed (see `SCS  installation guide <https://www.cvxgrp.org/scs/install/c.html#c-install>`__ for more detailed instructions.)
 
-To install SCS on Windows, follow these steps:
+To install SCS on Windows, execute the following commands in a terminal:
 
-1. Clone the SCS repository to a desired directory ``git clone https://github.com/cvxgrp/scs.git``
-2. Navigate to the SCS directory ``cd scs``
-3. Build SCS ``mkdir build && cd build``
+.. code-block:: bash
 
-  * ``cmake ..``
-  * ``cmake -DBUILD_INSTALL_PREFIX:PATH="C:/path/to/install/scs" -DUSE_LAPACK=0 .``
-  * ``cmake --build . --config Release``
-  * ``cmake --install . --config Release``
+    git clone https://github.com/cvxgrp/scs.git
+    cd scs
+    mkdir build && cd build
+    cmake ..
+    cmake -DBUILD_INSTALL_PREFIX:PATH="C:/path/to/install/scs" -DUSE_LAPACK=0 .
+    cmake --build . --config Release
+    cmake --install . --config Release
 
-4. Navigate to the powerflow/build folder and tell CMake where SCS is installed ``cmake -DCMAKE_PREFIX_PATH="C:/path/to/install/scs" .``
+
+Then navigate to the powerflow/build folder and tell CMake where SCS is installed 
+
+.. code-block:: bash
+
+    cmake -DCMAKE_PREFIX_PATH="C:/path/to/install/scs" .
 
 If done correctly, you should see the following message when building PowerFlow: ``-- SCS found: LAD parameter estimation enabled.``
 
