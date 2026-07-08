@@ -4,8 +4,9 @@
 #include <set>
 #include <unordered_set>
 
-void NetworkValidator::validateNetwork(const Network& network)
+void NetworkValidator::validateNetwork(const Network& network, Logger *const logger)
 {
+    this->logger = logger;
     validateConnections(network);
     for (grid_idx_t gridIdx = 0; gridIdx < network.grids.size(); ++gridIdx)
     {
@@ -110,8 +111,9 @@ void NetworkValidator::validateGrid(const Grid& grid, const grid_idx_t gridIdx)
 
         if (edge.z_c == 0.0) //Impedance shouldn't be 0 
         {
-            throw std::invalid_argument("Invalid zero impedance in edge " +
-                std::to_string(edgeIdx) + " in grid " + std::to_string(gridIdx));
+            *logger << "[PowerFlow] Warning: Zero impedance in edge " << edgeIdx << " grid " << gridIdx << std::endl;
+            /*throw std::invalid_argument("Invalid zero impedance in edge " +
+                std::to_string(edgeIdx) + " in grid " + std::to_string(gridIdx));*/
         }
         if (edge.parent < 0 || edge.parent >= grid.nodes.size()) //index for parent
         {

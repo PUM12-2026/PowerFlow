@@ -44,7 +44,7 @@ PowerFlowSolver::PowerFlowSolver(std::shared_ptr<Network> network, SolverSetting
     }
 
     NetworkValidator validator;
-    validator.validateNetwork(*network);
+    validator.validateNetwork(*network, logger);
 }
 
 // Entry point for solving network
