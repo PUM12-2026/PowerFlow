@@ -144,36 +144,31 @@ void NetworkEditor::_simplify(Grid &grid, node_idx_t n)
 
     // TODO: test this, unsure if it works correctly
     // Pass 1: remove zero-impedance cables
-    for (edge_idx_t edgeId : node.edges)
+    std::vector<edge_idx_t> edgesCopy = node.edges;  // copy before iterating
+    for (edge_idx_t edgeId : edgesCopy)
     {
         GridEdge &edge = grid.edges[edgeId];
-        if (edge.child == n) continue; 
+        if (edge.child == n) continue;
         if (std::abs(edge.z_c) >= mergeThreshold) continue;
 
         node_idx_t childIdx = edge.child;
         GridNode &child = grid.nodes[childIdx];
 
-        // Cannot merge if child is LOAD or SLACK
         if (child.type == LOAD || child.type == LOAD_IMPLICIT ||
             child.type == SLACK || child.type == SLACK_IMPLICIT)
             continue;
 
-        // Re-attach all of child's outgoing edges to current node
         for (edge_idx_t childEdgeId : child.edges)
         {
             GridEdge &childEdge = grid.edges[childEdgeId];
-            if (childEdge.child == childIdx) continue;  // skip incoming edge
-
-            // Re-parent this edge to current node
+            if (childEdge.child == childIdx) continue;
             childEdge.parent = n;
-            node.edges.push_back(childEdgeId);
+            node.edges.push_back(childEdgeId);  
         }
 
-        // Mark edge and child node for removal
         edge.parent = -1;
         child.type = REMOVED;
 
-        // Remove the zero edge and child from current node's edge list
         node.edges.erase(
             std::remove(node.edges.begin(), node.edges.end(), edgeId),
             node.edges.end()
