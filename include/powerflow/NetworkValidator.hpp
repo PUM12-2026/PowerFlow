@@ -6,6 +6,7 @@
 #include <string>
 #include <tuple>
 #include "powerflow/network.hpp"
+#include "powerflow/logger/Logger.hpp"
 
 // Class responsible for validating Network structs.
 // Used by PowerFlowSolver.
@@ -14,7 +15,7 @@ class NetworkValidator
 public:
     // Validates the provided network.
     // Throws if the network is not valid.
-    void validateNetwork(const Network& network);
+    void validateNetwork(const Network& network, Logger *const logger);
 private:
     // Validates Network connections.
     void validateConnections(const Network& network);
@@ -24,6 +25,8 @@ private:
 
     // Returns true if network has mulitple disjoint graphs.
     bool gridIsDisjoint(Grid const& grid);
+
+    Logger *logger;
 };
 
 #endif

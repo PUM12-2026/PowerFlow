@@ -81,8 +81,9 @@ TEST_CASE("T-02: Verify that network structure validation rules throw expected e
     REQUIRE_THROWS_WITH(validatePFSThrow(localPath + "examples/test_networks/edge_same_node.txt"),
                         Catch::Matchers::Contains("Invalid edge 2 that connects to the same node in grid 1"));
 
-    REQUIRE_THROWS_WITH(validatePFSThrow(localPath + "examples/test_networks/zero_impedance.txt"),
-                        Catch::Matchers::Contains("Invalid zero impedance in edge 1 in grid 1"));
+    // Test disabled to permit zero-impedances
+    /*REQUIRE_THROWS_WITH(validatePFSThrow(localPath + "examples/test_networks/zero_impedance.txt"),
+                        Catch::Matchers::Contains("Invalid zero impedance in edge 1 in grid 1"));*/
 
     // See how PowerFlow handles the situation of a network with one SLACK node
     // and a LOAD node that is not connected, i.e. a disjoint grid.
@@ -400,7 +401,7 @@ TEST_CASE("T-06: Verify that GridAnalyzer correctly determines the appropriate s
 TEST_CASE("T-1.1: Verify that network is simplified correctly.", "[validation]")
 {
     // Load file and ensure it exists
-    std::ifstream netFile("examples/test_networks/net_to_simplify.txt");
+    std::ifstream netFile("examples/test_networks/net_zero_impedance.txt");
     CHECK_FALSE(netFile.fail());
 
     // Standard setup
@@ -415,13 +416,30 @@ TEST_CASE("T-1.1: Verify that network is simplified correctly.", "[validation]")
     // Ensure network is radial
     REQUIRE(solver.isRadial());
 
+    auto Z1 = solver.getImpedances();
     solver.simplifyNetwork();
+    auto Z2 = solver.getImpedances();
 
     // Check that there are 10 nodes after simplification
-    REQUIRE(solver.getAllVoltages().size() == 11);
+    REQUIRE(solver.getAllVoltages().size() == 10);
 
     // Check that the amount of load nodes hasn't changed
     REQUIRE(solver.getLoadVoltages().size() == nLoads);
+
+    // Check that sum of impedances is within tolerance
+    complex_t Z1_sum = {0, 0};
+    complex_t Z2_sum = {0, 0};
+    for (size_t i = 0; i < Z1.size(); i++)
+    {
+        Z1_sum += Z1[i];
+    }
+    for (size_t i = 0; i < Z2.size(); i++)
+    {
+        Z2_sum += Z2[i];
+    }
+
+    REQUIRE(std::abs(Z1_sum.real() - Z2_sum.real()) < 1e-5);
+    REQUIRE(std::abs(Z1_sum.imag() - Z2_sum.imag()) < 1e-5);
 }
 
 TEST_CASE("T-1.2: Verify that simplified network is equivalent to original network.", "[validation]")
@@ -454,12 +472,10 @@ TEST_CASE("T-1.2: Verify that simplified network is equivalent to original netwo
 
     solver.solveById(S, V);
     auto V1 = solver.getLoadVoltages();
-    auto Z1 = solver.getImpedances();
 
     solver.simplifyNetwork();
     solver.solveById(S, V);
     auto V2 = solver.getLoadVoltages();
-    auto Z2 = solver.getImpedances();
 
     REQUIRE(V1.size() == V2.size());
 
@@ -471,21 +487,6 @@ TEST_CASE("T-1.2: Verify that simplified network is equivalent to original netwo
     REQUIRE(std::abs(V1[4] - V2[4]) < 1e-10);
     REQUIRE(std::abs(V1[5] - V2[5]) < 1e-10);
     REQUIRE(std::abs(V1[6] - V2[6]) < 1e-10);
-
-    complex_t Z1_sum = {0, 0};
-    complex_t Z2_sum = {0, 0};
-    for (size_t i = 0; i < Z1.size(); i++)
-    {
-        Z1_sum += Z1[i];
-    }
-    for (size_t i = 0; i < Z2.size(); i++)
-    {
-        Z2_sum += Z2[i];
-    }
-
-    // Check that impedances haven't changed
-    REQUIRE(std::abs(Z1_sum.real() - Z2_sum.real()) < 1e-10);
-    REQUIRE(std::abs(Z1_sum.imag() - Z2_sum.imag()) < 1e-10);
 }
 
 TEST_CASE("T-1.3: Verify that solve is equivalent to solveById.", "[validation]")

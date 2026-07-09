@@ -89,6 +89,9 @@ pfs = PowerFlow("example_network2_simplified.txt", settings);
 S_sample = S(:, 1);
 V_sample = complex(V_slack(1), 0);
 
+% We can use estimated parameters from before
+pfs.setImpedances(Z_ols);
+
 % Solving the network to estimate state, this also computes gradients
 pfs.solve(S_sample, V_sample);
 
