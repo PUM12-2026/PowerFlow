@@ -279,6 +279,7 @@ classdef PowerFlow < handle
             % SIMPLIFYNETWORK Simplifies the network by removing pass-through nodes. Network must be radial.
             %   Simplifies the network by removing intermediate nodes which only have two branches.
             %   The two branches merge into one branch, preserving the series impedance.
+            %   Also removes zero-impedance edges between MIDDLE nodes.
             %
             % See also:
             %   PowerFlow, isRadial

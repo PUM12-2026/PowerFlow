@@ -521,7 +521,9 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
     const size_t edgeCount = grid->edges.size();
     const size_t timeSteps = slackVoltages.size();
 
-    // Experimental feature. TODO: consider removing this
+    // Experimental feature. TODO: consider removing this or making this a setting
+    // Set to true here to enable. 
+    // Note: will be disabled if any S measurements have non-zero imaginary parts
     resistanceOnly = false;
 
     useNNLS = false;
@@ -573,6 +575,7 @@ std::vector<complex_t> ParameterValidator::validateRegression(std::unordered_map
         }
     }
 
+    // Translate measured values
     this->measuredValues = {};
     for (auto &it : measuredValues)
     {

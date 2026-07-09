@@ -52,6 +52,12 @@ public:
     std::vector<complex_t> solveParamsOLS(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
+    /**
+     * Estimate parameters using LAD regression. Requires SCS.
+     * 
+     * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
+     * @param slackVoltages Time-series voltages at SLACK node
+     */
     std::vector<complex_t> solveParamsLAD(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
     
@@ -91,19 +97,16 @@ public:
     // Saves network to file
     void save(std::ofstream& file);
 
-    /**
-     * Returns true if the network is radial, else false.
-     */
+    /** Returns true if the network is radial, else false. */
     bool isRadial();
 
-    /**
-     * Simplifies the network by merging cables in series
+    /** 
+     * Simplifies the network by merging cables in series and removing zero-impdeance edges 
+     * between MIDDLE nodes.
      */
     void simplifyNetwork();
 
-    /**
-     * Returns a vector of index-to-ID mappings, one for each grid in the network.
-     */
+    /** Returns a vector of index-to-ID mappings, one for each grid in the network. */
     std::vector<std::vector<node_key_t>> getIdMaps();
 
 private:

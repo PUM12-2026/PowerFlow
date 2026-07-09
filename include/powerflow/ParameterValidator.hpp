@@ -56,6 +56,12 @@ public:
     std::vector<complex_t> validateRegression(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
+    /**
+     * Estimate parameters using LAD regression. Requires SCS.
+     * 
+     * @param measuredValues Map of LOAD node IDs to time-series voltages and power injections
+     * @param slackVoltages Time-series voltages at SLACK node
+     */
     std::vector<complex_t> validateLAD(std::unordered_map<node_key_t, MeasuredValues> &measuredValues, 
         std::vector<complex_t> &slackVoltages);
 
@@ -64,14 +70,15 @@ private:
     Grid* grid{nullptr};
     Logger* const logger{nullptr};
     SolverSettings* settings{nullptr};
-    // Map of node IDs to measured (true) voltages
+    // Map of node indexes to measured (true) voltages, used by validate
     std::unordered_map<node_idx_t, complex_t> const measuredV;
+    // Map of node indexes to S and V vectors. Used by validateRegression and validateLAD
     std::unordered_map<node_idx_t, MeasuredValues> measuredValues;
 
     /**
-     * If true, validateRegression will only estimate resistances, 
-     * else both resistances and reactances will be estimated.
-     * True when all Q measurements are zero.
+     * If this is set to true, and no Q measurements are provided to validateRegression,
+     * only resistances will be estimated. Reactances will remain unchanged.
+     * Managed internally by validateRegression.
      */
     bool resistanceOnly = false;
 

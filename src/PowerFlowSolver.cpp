@@ -597,6 +597,7 @@ void PowerFlowSolver::save(std::ofstream &file)
 
 bool PowerFlowSolver::isRadial()
 {
+    // TODO: Consider making this more robust by running a search algorithm over the network to check for cycles
     GridAnalyzer analyzer;
     for (Grid& grid : network->grids)
     {
